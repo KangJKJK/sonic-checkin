@@ -48,6 +48,7 @@ fi
 # Node.js 모듈 설치
 echo -e "${YELLOW}필요한 Node.js 모듈을 설치합니다...${NC}"
 npm install
+npm install @solana/web3.js chalk bs58
 
 # Node.js 스크립트 작성 (sonic-checkin.mjs)
 echo -e "${YELLOW}Node.js 스크립트를 작성하고 있습니다...${NC}"
