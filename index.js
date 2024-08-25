@@ -1,6 +1,6 @@
 import { readFileSync } from "fs"; // 파일 시스템 모듈에서 읽기 기능을 가져옵니다.
 import { Twisters } from "twisters"; // Twisters 모듈을 가져옵니다.
-import { Connection, Keypair, SystemProgram, Transaction, LAMPORTS_PER_SOL, PublicKey } from "@solana/web3.js"; // Solana 웹3 모듈을 가져옵니다.
+import { Connection, Keypair, Transaction } from "@solana/web3.js"; // Solana 웹3 모듈을 가져옵니다.
 import bs58 from "bs58"; // Base58 인코딩/디코딩을 위한 모듈을 가져옵니다.
 import prompts from 'prompts'; // 사용자 입력을 받기 위한 모듈을 가져옵니다.
 import nacl from "tweetnacl"; // 암호화 기능을 위한 모듈을 가져옵니다.
@@ -252,10 +252,17 @@ const claimDailyMilestone = async (auth) => {
     }
 }
 
-// 예시 사용법
+// 사용자로부터 비밀키를 입력받아 Keypair 객체를 생성하고 나머지 작업 수행
 (async () => {
-    // 개인키를 통해 Keypair 객체 생성
-    const keyPair = getKeypairFromPrivateKey('비밀키를 여기에 입력하세요');
+    // 사용자로부터 비밀키 입력 받기
+    const response = await prompts({
+        type: 'text',
+        name: 'privateKey',
+        message: '비밀키를 입력하세요:',
+        validate: value => bs58.decode(value).length === 64 ? true : '비밀키가 유효하지 않습니다.'
+    });
+    
+    const keyPair = getKeypairFromPrivateKey(response.privateKey);
     
     // 로그인 토큰을 가져옵니다
     const auth = await getLoginToken(keyPair);
