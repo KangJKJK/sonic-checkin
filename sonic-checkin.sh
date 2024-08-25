@@ -241,5 +241,9 @@ echo -e "${YELLOW}Node.js 스크립트를 작성했습니다.${NC}"
 echo -e "${GREEN}Node.js 스크립트를 실행합니다...${NC}"
 node --no-deprecation sonic-checkin.mjs
 
+# 추가된 index.mjs 파일 실행
+echo -e "${GREEN}index.mjs 파일을 실행합니다...${NC}"
+node --no-deprecation index.mjs
+
 echo -e "${GREEN}모든 작업이 완료되었습니다. 컨트롤+A+D로 스크린을 종료해주세요.${NC}"
 echo -e "${GREEN}스크립트 작성자: https://t.me/kjkresearch${NC}"
