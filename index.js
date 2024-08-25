@@ -39,10 +39,16 @@ const generateRandomAddresses = (count) => {
     return addresses;
 }
 
-// 개인 키를 사용하여 Keypair를 생성하는 함수
-const getKeypairFromPrivateKey = (privateKey) => {
-    const decoded = bs58.decode(privateKey); // 개인 키를 Base58에서 디코딩
-    return Keypair.fromSecretKey(decoded); // Keypair 객체 생성
+// 개인 키를 파일에서 로드하여 Keypair 객체를 생성하는 함수
+const getKeypairFromPrivateKeyFile = () => {
+    const privateKeyBase58 = readFileSync(privateKeyFile, 'utf8').trim();
+    const privateKeyBytes = bs58.decode(privateKeyBase58);
+
+    if (privateKeyBytes.length !== 64) {
+        throw new Error('Invalid private key length');
+    }
+
+    return Keypair.fromSecretKey(privateKeyBytes);
 }
 
 // 거래를 전송하는 함수
