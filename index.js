@@ -1,16 +1,12 @@
-import { readFileSync } from "fs"; // 파일 시스템 모듈에서 읽기 기능을 가져옵니다.
-import { Twisters } from "twisters"; // Twisters 모듈을 가져옵니다.
-import { Connection, Keypair, Transaction } from "@solana/web3.js"; // Solana 웹3 모듈을 가져옵니다.
-import bs58 from "bs58"; // Base58 인코딩/디코딩을 위한 모듈을 가져옵니다.
-import prompts from 'prompts'; // 사용자 입력을 받기 위한 모듈을 가져옵니다.
-import nacl from "tweetnacl"; // 암호화 기능을 위한 모듈을 가져옵니다.
-import fetch from "node-fetch"; // HTTP 요청을 위한 모듈
+import { Connection, Keypair, Transaction } from "@solana/web3.js";
+import bs58 from "bs58";
+import prompts from 'prompts';
+import nacl from "tweetnacl";
+import fetch from "node-fetch";
 
 // Solana Devnet RPC URL 설정
 const rpc = 'https://devnet.sonic.game/';
 const connection = new Connection(rpc, 'confirmed'); // Solana 네트워크와 연결 설정
-const keypairs = []; // 생성된 키쌍을 저장할 배열
-const twisters = new Twisters(); // Twisters 인스턴스 생성
 
 // 기본 HTTP 헤더 설정
 const defaultHeaders = {
@@ -27,16 +23,6 @@ const defaultHeaders = {
     'sec-gpc': '1',
     'user-agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36'
 };
-
-// 랜덤 주소를 생성하는 함수
-const generateRandomAddresses = (count) => {
-    const keypairs = [];
-    for (let i = 0; i < count; i++) {
-        const keypair = Keypair.generate();
-        keypairs.push(keypair);
-    }
-    return keypairs;
-}
 
 // 개인키 로드
 const getKeypairFromPrivateKey = (privateKey) => {
@@ -223,28 +209,15 @@ const dailyCheckin = async (keyPair, auth) => {
 const claimDailyMilestone = async (auth) => {
     while (true) {
         try {
-            const res = await fetch('https://odyssey-api.sonic.game/market/milestone/checkin', {
+            const res = await fetch('https://odyssey-api.sonic.game/user/daily-milestone', {
                 headers: {
                     ...defaultHeaders,
                     'authorization': `${auth}`
                 }
             }).then(res => res.json());
             
-            if (res.message == 'already claimed') {
-                return '이미 청구했습니다.';
-            }
-            
-            if (res.data) {
-                // 마일스톤 보상 청구
-                const claim = await fetch('https://odyssey-api.sonic.game/market/milestone/checkin', {
-                    method: 'POST',
-                    headers: {
-                        ...defaultHeaders,
-                        'authorization': `${auth}`
-                    }
-                }).then(res => res.json());
-                
-                return claim.message;
+            if (res.status === 'ok') {
+                return '성공적으로 일일 마일스톤 보상을 청구했습니다!';
             }
         } catch (e) {
             // 오류 발생 시 재시도
@@ -252,26 +225,31 @@ const claimDailyMilestone = async (auth) => {
     }
 }
 
-// 사용자로부터 비밀키를 입력받아 Keypair 객체를 생성하고 나머지 작업 수행
-(async () => {
-    // 사용자로부터 비밀키 입력 받기
-    const response = await prompts({
-        type: 'text',
-        name: 'privateKey',
-        message: '비밀키를 입력하세요:',
-        validate: value => bs58.decode(value).length === 64 ? true : '비밀키가 유효하지 않습니다.'
-    });
-    
-    const keyPair = getKeypairFromPrivateKey(response.privateKey);
-    
-    // 로그인 토큰을 가져옵니다
-    const auth = await getLoginToken(keyPair);
-    
-    // 체크인
-    const checkinResult = await dailyCheckin(keyPair, auth);
-    console.log(checkinResult);
-    
-    // 마일스톤 보상 청구
-    const milestoneResult = await claimDailyMilestone(auth);
-    console.log(milestoneResult);
-})();
+// 사용자에게 비밀 키를 입력받기
+const main = async () => {
+    try {
+        // 비밀 키 입력받기
+        const response = await prompts({
+            type: 'text',
+            name: 'privateKey',
+            message: '비밀 키를 입력하세요 (Base58로 인코딩된 64바이트 키):'
+        });
+
+        const privateKey = response.privateKey;
+        if (!privateKey) {
+            console.error('비밀 키가 입력되지 않았습니다.');
+            return;
+        }
+
+        const keyPair = getKeypairFromPrivateKey(privateKey);
+        const authToken = await getLoginToken(keyPair); // 로그인 토큰 가져오기
+        
+        // 필요한 작업 수행
+        console.log(await claimFaucet(keyPair.publicKey.toBase58()));
+        console.log(await dailyCheckin(keyPair, authToken));
+        console.log(await claimDailyMilestone(authToken));
+
+    } catch (error) {
+        console.error(`오류 발생: ${error.message}`);
+    }
+}
