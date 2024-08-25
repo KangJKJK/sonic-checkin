@@ -1,14 +1,17 @@
-import { Connection, Keypair, Transaction } from "@solana/web3.js";
-import bs58 from "bs58";
+import { readFileSync } from 'fs';
+import { Twisters } from 'twisters';
+import { Connection, Keypair, PublicKey, SystemProgram, Transaction, LAMPORTS_PER_SOL } from '@solana/web3.js';
+import bs58 from 'bs58';
 import prompts from 'prompts';
-import nacl from "tweetnacl";
-import fetch from "node-fetch";
+import nacl from 'tweetnacl';
+import fetch from 'node-fetch';
 
-// Solana Devnet RPC URL 설정
+const captchaKey = 'INSERT_YOUR_2CAPTCHA_KEY_HERE';
 const rpc = 'https://devnet.sonic.game/';
-const connection = new Connection(rpc, 'confirmed'); // Solana 네트워크와 연결 설정
+const connection = new Connection(rpc, 'confirmed');
+const keypairs = [];
+const twisters = new Twisters();
 
-// 기본 HTTP 헤더 설정
 const defaultHeaders = {
     'accept': '*/*',
     'accept-language': 'en-US,en;q=0.7',
@@ -24,92 +27,77 @@ const defaultHeaders = {
     'user-agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36'
 };
 
-// 개인키 로드
-const getKeypairFromPrivateKey = (privateKey) => {
-    try {
-        // Base58로 인코딩된 비밀 키를 디코딩합니다
-        const decoded = bs58.decode(privateKey);
-
-        // 비밀 키의 길이가 64바이트인지 확인합니다
-        if (decoded.length !== 64) {
-            throw new Error(`비밀 키의 길이가 올바르지 않습니다. 현재 길이: ${decoded.length}`);
-        }
-
-        // Keypair 객체를 생성합니다
-        return Keypair.fromSecretKey(decoded);
-    } catch (error) {
-        console.error(`비밀 키 변환 오류: ${error.message}`);
-        throw error;
+const generateRandomAddresses = (count) => {
+    const addresses = [];
+    for (let i = 0; i < count; i++) {
+        const keypair = Keypair.generate();
+        addresses.push(keypair.publicKey.toString());
     }
-}
+    return addresses;
+};
 
-// 거래를 전송하는 함수
+const getKeypairFromPrivateKey = (privateKey) => {
+    const decoded = bs58.decode(privateKey);
+    return Keypair.fromSecretKey(decoded);
+};
+
 const sendTransaction = async (transaction, keyPair) => {
     try {
-        transaction.partialSign(keyPair); // 거래에 서명
-        const rawTransaction = transaction.serialize(); // 거래를 직렬화
-        const signature = await connection.sendRawTransaction(rawTransaction); // 거래 전송
-        await connection.confirmTransaction(signature); // 거래 확인
+        transaction.partialSign(keyPair);
+        const rawTransaction = transaction.serialize();
+        const signature = await connection.sendRawTransaction(rawTransaction);
+        await connection.confirmTransaction(signature);
         return signature;
     } catch (error) {
-        throw error;
+        return error;
     }
-}
+};
 
-// 지연을 주는 함수
 const delay = (seconds) => new Promise((resolve) => setTimeout(resolve, seconds * 1000));
 
-// 2Captcha Turnstile CAPTCHA를 해결하는 함수
 const twocaptcha_turnstile = async (sitekey, pageurl) => {
     try {
-        // CAPTCHA 토큰 요청
-        const getToken = await fetch(`https://2captcha.com/in.php?key=${captchaKey}&method=turnstile&sitekey=${sitekey}&pageurl=${pageurl}&json=1`, {
-            method: 'GET',
-        })
-        .then(res => res.text())
-        .then(res => {
-            if (res == 'ERROR_WRONG_USER_KEY' || res == 'ERROR_ZERO_BALANCE') {
-                throw new Error(res);
-            } else {
-                return res.split('|');
-            }
-        });
+        const getToken = await fetch(`https://2captcha.com/in.php?key=${captchaKey}&method=turnstile&sitekey=${sitekey}&pageurl=${pageurl}&json=1`)
+            .then(res => res.text())
+            .then(res => {
+                if (res == 'ERROR_WRONG_USER_KEY' || res == 'ERROR_ZERO_BALANCE') {
+                    return res;
+                } else {
+                    return res.split('|');
+                }
+            });
 
         if (getToken[0] != 'OK') {
-            throw new Error('FAILED_GETTING_TOKEN');
+            return 'FAILED_GETTING_TOKEN';
         }
     
         const task = getToken[1];
 
-        // 토큰을 얻기 위해 주기적으로 폴링
         for (let i = 0; i < 60; i++) {
-            const token = await fetch(
-                `https://2captcha.com/res.php?key=${captchaKey}&action=get&id=${task}&json=1`
-            ).then(res => res.json());
+            const token = await fetch(`https://2captcha.com/res.php?key=${captchaKey}&action=get&id=${task}&json=1`)
+                .then(res => res.json());
             
             if (token.status == 1) {
                 return token;
             }
-            await delay(2); // 2초 대기
+            await delay(2);
         }
-        throw new Error('FAILED_GETTING_TOKEN');
     } catch (error) {
-        throw error;
+        return 'FAILED_GETTING_TOKEN';
     }
-}
+};
 
-// 솔라나 Faucet에서 SOL을 청구하는 함수
 const claimFaucet = async (address) => {
     let success = false;
-    
+
     while (!success) {
+        const bearer = await twocaptcha_turnstile('0x4AAAAAAAc6HG1RMG_8EHSC', 'https://faucet.sonic.game/#/');
+        if (bearer == 'ERROR_WRONG_USER_KEY' || bearer == 'ERROR_ZERO_BALANCE' || bearer == 'FAILED_GETTING_TOKEN') {
+            success = true;
+            return `Failed claim, ${bearer}`;
+        }
+
         try {
-            const bearer = await twocaptcha_turnstile('0x4AAAAAAAc6HG1RMG_8EHSC', 'https://faucet.sonic.game/#/');
-            if (bearer == 'ERROR_WRONG_USER_KEY' || bearer == 'ERROR_ZERO_BALANCE' || bearer == 'FAILED_GETTING_TOKEN') {
-                return `청구 실패, ${bearer}`;
-            }
-    
-            // Faucet API를 통해 청구 요청
             const res = await fetch(`https://faucet-api.sonic.game/airdrop/${address}/1/${bearer.request}`, {
                 headers: {
                     "Accept": "application/json, text/plain, */*",
@@ -124,30 +112,29 @@ const claimFaucet = async (address) => {
                     "sec-ch-ua-platform": "Windows",
                 }
             }).then(res => res.json());
-    
+
             if (res.status == 'ok') {
-                return `성공적으로 1 SOL을 청구했습니다!`;
+                success = true;
+                return `Successfully claim faucet 1 SOL!`;
             }
         } catch (error) {
-            return `청구 실패, ${error}`;
+            // Handle error if necessary
         }
     }
-}
+};
 
-// 로그인 토큰을 가져오는 함수
 const getLoginToken = async (keyPair) => {
-    while (true) {
+    let success = false;
+    while (!success) {
         try {
-            // 로그인 도전 과제 요청
             const message = await fetch(`https://odyssey-api.sonic.game/auth/sonic/challenge?wallet=${keyPair.publicKey}`, {
                 headers: defaultHeaders
             }).then(res => res.json());
-        
-            const sign = nacl.sign.detached(Buffer.from(message.data), keyPair.secretKey); // 메시지에 서명
+
+            const sign = nacl.sign.detached(Buffer.from(message.data), keyPair.secretKey);
             const signature = Buffer.from(sign).toString('base64');
             const publicKey = keyPair.publicKey.toBase58();
             const addressEncoded = Buffer.from(keyPair.publicKey.toBytes()).toString("base64");
-            // 인증 요청
             const authorize = await fetch('https://odyssey-api.sonic.game/auth/sonic/authorize', {
                 method: 'POST',
                 headers: defaultHeaders,
@@ -157,35 +144,36 @@ const getLoginToken = async (keyPair) => {
                     'signature': `${signature}`
                 })
             }).then(res => res.json());
-        
-            return authorize.data.token;
+
+            const token = authorize.data.token;
+            success = true;
+            return token;
         } catch (e) {
-            // 오류 발생 시 재시도
+            // Handle error if necessary
         }
     }
-}
+};
 
-// 매일 체크인하는 함수
 const dailyCheckin = async (keyPair, auth) => {
-    while (true) {
+    let success = false;
+    while (!success) {
         try {
-            // 체크인 상태 요청
             const data = await fetch(`https://odyssey-api.sonic.game/user/check-in/transaction`, {
                 headers: {
                     ...defaultHeaders,
                     'authorization': `${auth}`
                 }
             }).then(res => res.json());
-            
+
             if (data.message == 'current account already checked in') {
-                return '오늘 이미 체크인했습니다!';
+                success = true;
+                return 'Already check in today!';
             }
-            
+
             if (data.data) {
                 const transactionBuffer = Buffer.from(data.data.hash, "base64");
                 const transaction = Transaction.from(transactionBuffer);
-                const signature = await sendTransaction(transaction, keyPair); // 거래 전송
-                // 체크인 완료 요청
+                const signature = await sendTransaction(transaction, keyPair);
                 const checkin = await fetch('https://odyssey-api.sonic.game/user/check-in', {
                     method: 'POST',
                     headers: {
@@ -196,60 +184,104 @@ const dailyCheckin = async (keyPair, auth) => {
                         'hash': `${signature}`
                     })
                 }).then(res => res.json());
-                
-                return `성공적으로 체크인 완료, ${checkin.data.accumulative_days}일째!`;
+
+                success = true;
+                return `Successfully to check in, day ${checkin.data.accumulative_days}!`;
             }
         } catch (e) {
-            // 오류 발생 시 재시도
+            // Handle error if necessary
         }
     }
-}
+};
 
-// 일일 마일스톤 보상을 청구하는 함수
-const claimDailyMilestone = async (auth) => {
-    while (true) {
+const dailyMilestone = async (auth, stage) => {
+    let success = false;
+    while (!success) {
         try {
-            const res = await fetch('https://odyssey-api.sonic.game/user/daily-milestone', {
+            await fetch('https://odyssey-api.sonic.game/user/transactions/state/daily', {
+                method: 'GET',
                 headers: {
                     ...defaultHeaders,
                     'authorization': `${auth}`
                 }
+            });
+
+            const data = await fetch('https://odyssey-api.sonic.game/user/transactions/rewards/claim', {
+                method: 'POST',
+                headers: {
+                    ...defaultHeaders,
+                    'authorization': `${auth}`
+                },
+                body: JSON.stringify({
+                    'stage': stage
+                })
             }).then(res => res.json());
-            
-            if (res.status === 'ok') {
-                return '성공적으로 일일 마일스톤 보상을 청구했습니다!';
+
+            if (data.message == 'interact rewards already claimed') {
+                success = true;
+                return `Already claim milestone ${stage}!`;
+            }
+
+            if (data.data) {
+                success = true;
+                return `Successfully to claim milestone ${stage}.`
             }
         } catch (e) {
-            // 오류 발생 시 재시도
+            // Handle error if necessary
         }
     }
-}
+};
 
-// 사용자에게 비밀 키를 입력받기
+const openBox = async (keyPair, auth) => {
+    let success = false;
+    while (!success) {
+        try {
+            const data = await fetch(`https://odyssey-api.sonic.game/user/rewards/mystery-box/build-tx`, {
+                headers: {
+                    ...defaultHeaders,
+                    'authorization': auth
+                }
+            }).then(res => res.json());
+
+            if (data.data) {
+                const transactionBuffer = Buffer.from(data.data.hash, "base64");
+                const transaction = Transaction.from(transactionBuffer);
+                transaction.partialSign(keyPair);
+                const signature = await sendTransaction(transaction, keyPair);
+                const open = await fetch('https://odyssey-api.sonic.game/user/rewards/mystery-box/open', {
+                    method: 'POST',
+                    headers: {
+                        ...defaultHeaders,
+                        'authorization': auth
+                    },
+                    body: JSON.stringify({
+                        'hash': signature
+                    })
+                }).then(res => res.json());
+
+                success = true;
+                return `Successfully to open box, ${open.data.reward}!`;
+            }
+        } catch (e) {
+            // Handle error if necessary
+        }
+    }
+};
+
 const main = async () => {
-    try {
-        // 비밀 키 입력받기
-        const response = await prompts({
-            type: 'text',
-            name: 'privateKey',
-            message: '비밀 키를 입력하세요 (Base58로 인코딩된 64바이트 키):'
-        });
+    const addresses = generateRandomAddresses(10);
 
-        const privateKey = response.privateKey;
-        if (!privateKey) {
-            console.error('비밀 키가 입력되지 않았습니다.');
-            return;
-        }
+    for (const address of addresses) {
+        console.log(`Processing address: ${address}`);
 
-        const keyPair = getKeypairFromPrivateKey(privateKey);
-        const authToken = await getLoginToken(keyPair); // 로그인 토큰 가져오기
-        
-        // 필요한 작업 수행
-        console.log(await claimFaucet(keyPair.publicKey.toBase58()));
-        console.log(await dailyCheckin(keyPair, authToken));
-        console.log(await claimDailyMilestone(authToken));
+        const keyPair = getKeypairFromPrivateKey(address);
+        const auth = await getLoginToken(keyPair);
 
-    } catch (error) {
-        console.error(`오류 발생: ${error.message}`);
+        console.log(await claimFaucet(address));
+        console.log(await dailyCheckin(keyPair, auth));
+        console.log(await dailyMilestone(auth, 3));
+        console.log(await openBox(keyPair, auth));
     }
-}
+};
+
+main();
