@@ -32,8 +32,8 @@ curl -o package.json https://raw.githubusercontent.com/KangJKJK/sonic-checkin/ma
 rm -f package-lock.json
 curl -o package-lock.json https://raw.githubusercontent.com/KangJKJK/sonic-checkin/main/package-lock.json
 
-rm -f index.js
-curl -o index.js https://raw.githubusercontent.com/KangJKJK/sonic-checkin/main/index.js
+rm -f index.mjs
+curl -o index.mjs https://raw.githubusercontent.com/KangJKJK/sonic-checkin/main/index.js
 
 # npm 설치 여부 확인
 echo -e "${YELLOW}필요한 파일들을 설치합니다...${NC}"
@@ -49,9 +49,9 @@ fi
 echo -e "${YELLOW}필요한 Node.js 모듈을 설치합니다...${NC}"
 npm install
 
-# Node.js 스크립트 작성 (sonic-checkin.js)
+# Node.js 스크립트 작성 (sonic-checkin.mjs)
 echo -e "${YELLOW}Node.js 스크립트를 작성하고 있습니다...${NC}"
-cat << 'EOF' > sonic-checkin.js
+cat << 'EOF' > sonic-checkin.mjs
 import fs from 'fs';
 import path from 'path';
 import prompts from 'prompts';
@@ -239,7 +239,7 @@ echo -e "${YELLOW}Node.js 스크립트를 작성했습니다.${NC}"
 
 # Node.js 스크립트 실행
 echo -e "${GREEN}Node.js 스크립트를 실행합니다...${NC}"
-node sonic-checkin.js
+node sonic-checkin.mjs
 
 echo -e "${GREEN}모든 작업이 완료되었습니다. 컨트롤+A+D로 스크린을 종료해주세요.${NC}"
 echo -e "${GREEN}스크립트 작성자: https://t.me/kjkresearch${NC}"
