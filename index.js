@@ -37,8 +37,8 @@ const generateRandomAddresses = (count) => {
     return addresses;
 }
 
-// 개인 키 파일 경로
-const workDir = './'; // 작업 디렉토리 경로
+// 작업 디렉토리 설정
+const workDir = './'; // 현재 디렉토리 (root/sonic-daily)
 const privateKeyFile = path.join(workDir, 'sonicprivate.txt');
 
 // 개인 키를 파일에서 로드하여 Keypair 객체를 생성하는 함수
