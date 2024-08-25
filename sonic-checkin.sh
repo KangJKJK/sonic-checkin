@@ -1,3 +1,5 @@
+#!/bin/sh
+
 const fs = require('fs');
 const path = require('path');
 const prompts = require('prompts');
