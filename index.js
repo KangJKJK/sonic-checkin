@@ -37,16 +37,24 @@ const generateRandomAddresses = (count) => {
     return addresses;
 }
 
+// 개인 키 파일 경로
+const workDir = './'; // 작업 디렉토리 경로
+const privateKeyFile = path.join(workDir, 'sonicprivate.txt');
+
 // 개인 키를 파일에서 로드하여 Keypair 객체를 생성하는 함수
 const getKeypairFromPrivateKeyFile = () => {
     try {
+        // 개인 키를 파일에서 읽어옵니다
         const privateKeyBase58 = readFileSync(privateKeyFile, 'utf8').trim();
+        // Base58로 인코딩된 문자열을 디코딩하여 바이트 배열로 변환합니다
         const privateKeyBytes = bs58.decode(privateKeyBase58);
 
+        // 개인 키의 길이를 확인합니다
         if (privateKeyBytes.length !== 64) {
             throw new Error('Invalid private key length. Expected 64 bytes.');
         }
 
+        // Keypair 객체를 생성합니다
         return Keypair.fromSecretKey(privateKeyBytes);
     } catch (error) {
         console.error('Error loading Keypair from private key file:', error);
