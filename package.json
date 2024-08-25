@@ -5,7 +5,6 @@
     "fs": "^0.0.1-security",
     "prompts": "^2.4.2",
     "tweetnacl": "^1.0.3",
-    "twisters": "^1.1.0",
-    "node-fetch": "^3.3.0"
+    "twisters": "^1.1.0"
   }
 }
