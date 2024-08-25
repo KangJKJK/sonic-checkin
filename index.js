@@ -38,6 +38,16 @@ const generateRandomAddresses = (count) => {
     return addresses;
 }
 
+// 랜덤 주소를 생성하는 함수
+const generateRandomAddresses = (count) => {
+    const keypairs = [];
+    for (let i = 0; i < count; i++) {
+        const keypair = Keypair.generate();
+        keypairs.push(keypair);
+    }
+    return keypairs;
+}
+
 // 개인키 로드
 const getKeypairFromPrivateKey = (privateKey) => {
     try {
@@ -55,6 +65,10 @@ const getKeypairFromPrivateKey = (privateKey) => {
         console.error(`비밀 키 변환 오류: ${error.message}`);
         throw error;
     }
+}
+
+// 거래를 전송하는 함수
+const sendTransaction = async (transaction,
 }
 
 // 거래를 전송하는 함수
