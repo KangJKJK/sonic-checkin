@@ -47,6 +47,12 @@ echo -e "${YELLOW}필요한 Node.js 모듈을 설치합니다...${NC}"
 npm install
 npm install @solana/web3.js chalk bs58
 
+# 개인키 입력받기
+read -p "Solana의 개인키를 쉼표로 구분하여 입력하세요: " privkeys
+
+# 개인키를 파일에 저장
+echo "$privkeys" > "$workDir2/sonicprivate.txt"
+
 # Node.js 스크립트 작성 (sonic-checkin.mjs)
 echo -e "${YELLOW}Node.js 스크립트를 작성하고 있습니다...${NC}"
 cat << 'EOF' > sonic-checkin.mjs
@@ -66,18 +72,21 @@ if (!fs.existsSync(workDir)) {
 process.chdir(workDir);
 
 (async () => {
-    // 사용자로부터 개인키 입력받기 (콤마로 구분)
-    const response = await prompts({
-        type: 'text',
-        name: 'privateKeys',
-        message: '콤마로 구분된 개인키를 입력하세요 (여러 개인키 입력 가능). 입력 후 Enter를 누르세요:',
-        validate: value => value.trim().length > 0 ? true : '개인키를 입력해 주세요.'
-    });
+   // 콤마로 구분된 개인키 목록 읽기
+    const listAccounts = fs.readFileSync(path.join(workDir2, 'sonicprivate.txt'), 'utf-8')
+        .split(",")
+        .map(a => a.trim());
 
-    // 개인키 파일로 저장
-    const privateKeyFile = path.join(workDir, 'sonicprivate.txt');
-    fs.writeFileSync(privateKeyFile, response.privateKeys.trim());
+    if (listAccounts.length === 0) {
+        throw new Error('sonicprivate.txt에 개인키를 하나 이상 입력해주세요.');
+    }
 
+    const connection = new sol.Connection('https://devnet.sonic.game/', 'confirmed');
+
+    function getKeypairFromPrivateKey(privateKey) {
+        const decoded = bs58.decode(privateKey);
+        return sol.Keypair.fromSecretKey(decoded);
+    }
     // 환경 변수 설정
     process.env.privatekey = response.privateKeys.trim();
 
