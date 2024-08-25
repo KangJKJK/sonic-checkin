@@ -45,12 +45,6 @@ else
     echo -e "${GREEN}npm이 이미 설치되어 있습니다.${NC}"
 fi
 
-# package.json, package-lock.json, index.js 파일 다운로드
-echo -e "${YELLOW}필요한 파일들을 다운로드합니다...${NC}"
-curl -o package.json https://raw.githubusercontent.com/KangJKJK/sonic-checkin/main/package.json
-curl -o package-lock.json https://raw.githubusercontent.com/KangJKJK/sonic-checkin/main/package-lock.json
-curl -o index.js https://raw.githubusercontent.com/KangJKJK/sonic-checkin/main/index.js
-
 # Node.js 모듈 설치
 echo -e "${YELLOW}필요한 Node.js 모듈을 설치합니다...${NC}"
 npm install
