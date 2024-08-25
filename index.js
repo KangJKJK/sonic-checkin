@@ -58,10 +58,6 @@ const getKeypairFromPrivateKey = (privateKey) => {
 }
 
 // 거래를 전송하는 함수
-const sendTransaction = async (transaction,
-}
-
-// 거래를 전송하는 함수
 const sendTransaction = async (transaction, keyPair) => {
     try {
         transaction.partialSign(keyPair); // 거래에 서명
@@ -224,69 +220,31 @@ const dailyCheckin = async (keyPair, auth) => {
 }
 
 // 일일 마일스톤 보상을 청구하는 함수
-const dailyMilestone = async (auth, stage) => {
+const claimDailyMilestone = async (auth) => {
     while (true) {
         try {
-            // 일일 거래 상태 요청
-            await fetch('https://odyssey-api.sonic.game/user/transactions/state/daily', {
-                method: 'GET',
-                headers: {
-                    ...defaultHeaders,
-                    'authorization': `${auth}`
-                }
-            });
-            
-            // 마일스톤 보상 요청
-            const milestone = await fetch(`https://odyssey-api.sonic.game/user/milestones/daily/${stage}`, {
-                method: 'POST',
+            const res = await fetch('https://odyssey-api.sonic.game/market/milestone/checkin', {
                 headers: {
                     ...defaultHeaders,
                     'authorization': `${auth}`
                 }
             }).then(res => res.json());
             
-            if (milestone.data) {
-                return `성공적으로 마일스톤 ${stage} 보상을 청구했습니다!`;
-            }
-        } catch (e) {
-            // 오류 발생 시 재시도
-        }
-    }
-}
-
-// 미스터리 박스를 여는 함수
-const openBox = async (keyPair, auth) => {
-    while (true) {
-        try {
-            // 미스터리 박스 상태 요청
-            const data = await fetch(`https://odyssey-api.sonic.game/user/rewards/mystery-box`, {
-                headers: {
-                    ...defaultHeaders,
-                    'authorization': `${auth}`
-                }
-            }).then(res => res.json());
-            
-            if (data.message == 'already opened') {
-                return '이미 박스를 열었습니다!';
+            if (res.message == 'already claimed') {
+                return '이미 청구했습니다.';
             }
             
-            if (data.data) {
-                const transactionBuffer = Buffer.from(data.data.hash, "base64");
-                const transaction = Transaction.from(transactionBuffer);
-                const signature = await sendTransaction(transaction, keyPair); // 거래 전송
-                // 박스 열기 요청
-                const open = await fetch('https://odyssey-api.sonic.game/user/rewards/mystery-box/open', {
+            if (res.data) {
+                // 마일스톤 보상 청구
+                const claim = await fetch('https://odyssey-api.sonic.game/market/milestone/checkin', {
                     method: 'POST',
                     headers: {
                         ...defaultHeaders,
-                        'authorization': auth
-                    },
-                    body: JSON.stringify({
-                        'hash': `${signature}`
-                    })
+                        'authorization': `${auth}`
+                    }
                 }).then(res => res.json());
                 
-                return `성공적으로 박스를 열었습니다, ${open.data}!`;
+                return claim.message;
             }
         } catch (e) {
             // 오류 발생 시 재시도
@@ -294,34 +252,19 @@ const openBox = async (keyPair, auth) => {
     }
 }
 
-// 모든 기능을 실행하는 함수
-const claimAirdrop = async (keyPair) => {
-    const auth = await getLoginToken(keyPair); // 로그인 토큰 획득
-    const result = {
-        faucet: await claimFaucet(keyPair.publicKey.toString()), // Faucet에서 SOL 청구
-        checkin: await dailyCheckin(keyPair, auth), // 매일 체크인
-        milestone1: await dailyMilestone(auth, 1), // 마일스톤 1 청구
-        milestone2: await dailyMilestone(auth, 2), // 마일스톤 2 청구
-        milestone3: await dailyMilestone(auth, 3), // 마일스톤 3 청구
-        openBox: await openBox(keyPair, auth), // 미스터리 박스 열기
-    };
-    return result;
-}
-
-// 메인 함수
-const main = async () => {
-    const count = 1; // 생성할 주소의 수
-    const addresses = generateRandomAddresses(count); // 랜덤 주소 생성
-
-    for (const address of addresses) {
-        const keyPair = getKeypairFromPrivateKey(address); // 개인 키를 통해 Keypair 생성
-        keypairs.push(keyPair); // 배열에 추가
-    }
-
-    for (const keyPair of keypairs) {
-        const result = await claimAirdrop(keyPair); // 에어드랍 청구
-        console.log(`주소 ${keyPair.publicKey.toBase58()}의 결과:`, result); // 결과 출력
-    }
-}
-
-main().catch(console.error); // 메인 함수 실행 및 에러 출력
+// 예시 사용법
+(async () => {
+    // 개인키를 통해 Keypair 객체 생성
+    const keyPair = getKeypairFromPrivateKey('비밀키를 여기에 입력하세요');
+    
+    // 로그인 토큰을 가져옵니다
+    const auth = await getLoginToken(keyPair);
+    
+    // 체크인
+    const checkinResult = await dailyCheckin(keyPair, auth);
+    console.log(checkinResult);
+    
+    // 마일스톤 보상 청구
+    const milestoneResult = await claimDailyMilestone(auth);
+    console.log(milestoneResult);
+})();
