@@ -66,20 +66,20 @@ if (!fs.existsSync(workDir)) {
 process.chdir(workDir);
 
 (async () => {
-    // 사용자로부터 개인키 입력받기
+    // 사용자로부터 개인키 입력받기 (콤마로 구분)
     const response = await prompts({
         type: 'text',
-        name: 'privateKey',
-        message: '개인키를 콤마로 구분하여 입력하세요 (여러 개인키 입력 가능). 입력 후 Enter를 누르세요:',
+        name: 'privateKeys',
+        message: '콤마로 구분된 개인키를 입력하세요 (여러 개인키 입력 가능). 입력 후 Enter를 누르세요:',
         multiline: true
     });
 
     // 개인키 파일로 저장
     const privateKeyFile = path.join(workDir, 'sonicprivate.txt');
-    fs.writeFileSync(privateKeyFile, response.privateKey.trim());
+    fs.writeFileSync(privateKeyFile, response.privateKeys.trim());
 
     // 환경 변수 설정
-    process.env.privatekey = response.privateKey.trim();
+    process.env.privatekey = response.privateKeys.trim();
 
     const connection = new sol.Connection('https://devnet.sonic.game/', 'confirmed');
 
@@ -210,6 +210,7 @@ process.chdir(workDir);
         resolve(token);
     });
 
+    // 콤마로 구분된 개인키 목록 읽기
     const listAccounts = fs.readFileSync(path.join(workDir, 'sonicprivate.txt'), 'utf-8')
         .split(",")
         .map(a => a.trim());
@@ -218,6 +219,7 @@ process.chdir(workDir);
         throw new Error('sonicprivate.txt에 개인키를 하나 이상 입력해주세요.');
     }
 
+    // 각 개인키에 대해 처리 수행
     for (const privateKey of listAccounts) {
         const keypair = getKeypairFromPrivateKey(privateKey);
         const publicKey = keypair.publicKey.toBase58();
