@@ -1,122 +1,185 @@
-#!/bin/bash
+const fs = require('fs');
+const path = require('path');
+const prompts = require('prompts');
+const sol = require("@solana/web3.js");
+const bs58 = require("bs58");
+const nacl = require("tweetnacl");
 
-# 컬러 정의
-export RED='\033[0;31m'
-export GREEN='\033[0;32m'
-export YELLOW='\033[1;33m'
-export BOLD_BLUE='\033[1;34m'
-export NC='\033[0m'  # No Color
-
-# 사전안내
-echo -e "${RED}트잭봇은 필수로 버너지갑을 이용하세요${NC}"
-
-# 설치할 Node.js 버전 설정 (예: 18.x LTS)
-NODE_VERSION="18.x"
-
-if ! command -v node &> /dev/null
-then
-    echo -e "${BOLD_BLUE}Node.js가 설치되지 않았습니다. Node.js ${NODE_VERSION}를 설치합니다...${NC}"
-    echo
-    curl -sL https://deb.nodesource.com/setup_${NODE_VERSION} | sudo -E bash -
-    sudo apt-get install -y nodejs
-else
-    echo -e "${BOLD_BLUE}Node.js가 이미 설치되어 있습니다.${NC}"
-fi
-echo
-if ! command -v npm &> /dev/null
-then
-    echo -e "${BOLD_BLUE}npm이 설치되지 않았습니다. npm을 설치합니다...${NC}"
-    echo
-    sudo apt-get install -y npm
-else
-    echo -e "${BOLD_BLUE}npm이 이미 설치되어 있습니다.${NC}"
-fi
-echo
-echo -e "${BOLD_BLUE}프로젝트 디렉토리를 생성하고 해당 디렉토리로 이동합니다.${NC}"
-mkdir -p SonicBatchTx
-cd SonicBatchTx
-echo
-echo -e "${BOLD_BLUE}새로운 Node.js 프로젝트를 초기화합니다.${NC}"
-echo
-npm init -y
-echo
-echo -e "${BOLD_BLUE}필요한 패키지를 설치합니다.${NC}"
-echo
-npm install @solana/web3.js chalk bs58
-echo
-echo -e "${BOLD_BLUE}개인키를 입력해야합니다.${NC}"
-echo
-read -p "Solana 월렛의 개인키를 입력하세요. 버너지갑을 사용하세요.: " privkey
-echo
-echo -e "${BOLD_BLUE}Node.js 스크립트 파일을 생성합니다.${NC}"
-echo
-cat << EOF > kjk.mjs
-import {
-    Connection,
-    Keypair,
-    SystemProgram,
-    Transaction,
-    sendAndConfirmTransaction,
-    ComputeBudgetProgram,
-    LAMPORTS_PER_SOL,
-    PublicKey
-} from "@solana/web3.js";
-import bs58 from "bs58";
-
-// Devnet RPC URL 설정
-const connection = new Connection("https://devnet.sonic.game", 'confirmed');
-
-// 개인 키 입력
-const privkey = "$privkey"; // 개인 키를 여기에 입력하세요
-const from = Keypair.fromSecretKey(bs58.decode(privkey));
-
-// 수신자 주소를 하드코딩된 주소로 설정
-const toPubkey = new PublicKey("7cb7ATwM9hsEav7yKsbZU8vVqU37VJSFnmyDJXKQEwkV");
-
-async function sendTransaction(wallet) {
-    const tx = new Transaction();
-
-    // Compute Budget: SetComputeUnitPrice
-    tx.add(
-        ComputeBudgetProgram.setComputeUnitPrice({
-            microLamports: 50000 // 가격 설정
-        })
-    );
-
-    // System Program: Transfer
-    tx.add(
-        SystemProgram.transfer({
-            fromPubkey: from.publicKey,
-            toPubkey: toPubkey,
-            lamports: 0 // 전송할 SOL 수 (0 SOL)
-        })
-    );
-
-    // Compute Budget: SetComputeUnitLimit
-    tx.add(
-        ComputeBudgetProgram.setComputeUnitLimit({
-            units: 1400000 // 한도 설정
-        })
-    );
-
-    try {
-        const signature = await sendAndConfirmTransaction(connection, tx, [wallet]);
-        console.log('Tx hash:', signature);
-    } catch (error) {
-        console.error('Transaction failed:', error.message);
-        if (error.transactionLogs) {
-            console.error('Transaction logs:', error.transactionLogs);
-        }
-    }
+// 작업 디렉토리 설정
+const workDir = '/root/sonic-daily';
+if (!fs.existsSync(workDir)) {
+    fs.mkdirSync(workDir, { recursive: true });
 }
+process.chdir(workDir);
 
 (async () => {
-    await sendTransaction(from);
+    // 사용자로부터 개인키 입력받기
+    const response = await prompts({
+        type: 'text',
+        name: 'privateKey',
+        message: 'Enter your private key (one per line). Press Enter when done:',
+        multiline: true
+    });
+
+    // 개인키 파일로 저장
+    const privateKeyFile = path.join(workDir, 'sonicprivate.txt');
+    writeFileSync(privateKeyFile, response.privateKey.trim());
+
+    // 환경 변수 설정
+    process.env.privatekey = response.privateKey.trim();
+
+    const connection = new sol.Connection('https://devnet.sonic.game/', 'confirmed');
+
+    function getKeypairFromPrivateKey(privateKey) {
+        const decoded = bs58.decode(privateKey);
+        return sol.Keypair.fromSecretKey(decoded);
+    }
+
+    async function Tx(trans, keyPair) {
+        const tx = await sol.sendAndConfirmTransaction(connection, trans, [
+            keyPair,
+        ]);
+        console.log(`Tx Url: https://explorer.sonic.game/tx/${tx}`);
+        return tx;
+    }
+
+    const getSolanaBalance = (fromKeypair) => {
+        return new Promise(async (resolve) => {
+            try {
+                const balance = await connection.getBalance(fromKeypair.publicKey);
+                resolve(balance / sol.LAMPORTS_PER_SOL);
+            } catch (error) {
+                resolve('Error getting balance!');
+            }
+        });
+    }
+
+    const getDailyLogin = (keyPair, auth) => new Promise(async (resolve, reject) => {
+        const data = await fetch(`https://odyssey-api.sonic.game/user/check-in/transaction`, {
+            headers: {
+                'accept': '*/*',
+                'accept-language': 'en-US,en;q=0.6',
+                'if-none-match': 'W/"192-D/PuxxsvlPPenys+YyKzNiw6SKg"',
+                'origin': 'https://odyssey.sonic.game',
+                'priority': 'u=1, i',
+                'referer': 'https://odyssey.sonic.game/',
+                'sec-ch-ua': '"Not/A)Brand";v="8", "Chromium";v="126", "Brave";v="126"',
+                'sec-ch-ua-mobile': '?0',
+                'sec-ch-ua-platform': '"Windows"',
+                'sec-fetch-dest': 'empty',
+                'sec-fetch-mode': 'cors',
+                'sec-fetch-site': 'same-site',
+                'sec-gpc': '1',
+                'Authorization': `${auth}`,
+                'user-agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36'
+            }
+        }).then(response => response.json());
+        if (data.data) {
+            const transactionBuffer = Buffer.from(data.data.hash, "base64");
+            const transaction = sol.Transaction.from(transactionBuffer);
+            const signature = await Tx(transaction, keyPair);
+            const checkin = await fetch('https://odyssey-api.sonic.game/user/check-in', {
+                method: 'POST',
+                headers: {
+                    'accept': '*/*',
+                    'accept-language': 'en-US,en;q=0.6',
+                    'content-type': 'application/json',
+                    'origin': 'https://odyssey.sonic.game',
+                    'priority': 'u=1, i',
+                    'referer': 'https://odyssey.sonic.game/',
+                    'sec-ch-ua': '"Not/A)Brand";v="8", "Chromium";v="126", "Brave";v="126"',
+                    'sec-ch-ua-mobile': '?0',
+                    'sec-ch-ua-platform': '"Windows"',
+                    'sec-fetch-dest': 'empty',
+                    'sec-fetch-mode': 'cors',
+                    'sec-fetch-site': 'same-site',
+                    'sec-gpc': '1',
+                    'Authorization': `${auth}`,
+                    'user-agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36'
+                },
+                body: JSON.stringify({
+                    'hash': `${signature}`
+                })
+            }).then(response => response.json());
+            resolve(checkin)
+        } else {
+            resolve(data)
+        }
+    });
+
+    const getTokenLogin = (keyPair) => new Promise(async (resolve, reject) => {
+        const message = await fetch(`https://odyssey-api.sonic.game/auth/sonic/challenge?wallet=${keyPair.publicKey}`, {
+            headers: {
+                'accept': '*/*',
+                'accept-language': 'en-US,en;q=0.6',
+                'if-none-match': 'W/"192-D/PuxxsvlPPenys+YyKzNiw6SKg"',
+                'origin': 'https://odyssey.sonic.game',
+                'priority': 'u=1, i',
+                'referer': 'https://odyssey.sonic.game/',
+                'sec-ch-ua': '"Not/A)Brand";v="8", "Chromium";v="126", "Brave";v="126"',
+                'sec-ch-ua-mobile': '?0',
+                'sec-ch-ua-platform': '"Windows"',
+                'sec-fetch-dest': 'empty',
+                'sec-fetch-mode': 'cors',
+                'sec-fetch-site': 'same-site',
+                'sec-gpc': '1',
+                'user-agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36'
+            }
+        }).then(response => response.json());
+
+        const sign = nacl.sign.detached(Buffer.from(message.data), keyPair.secretKey);
+        const signature = Buffer.from(sign).toString('base64');
+        const publicKey = keyPair.publicKey.toBase58();
+        const addressEncoded = Buffer.from(keyPair.publicKey.toBytes()).toString("base64")
+        const authorize = await fetch('https://odyssey-api.sonic.game/auth/sonic/authorize', {
+            method: 'POST',
+            headers: {
+                'accept': '*/*',
+                'accept-language': 'en-US,en;q=0.6',
+                'content-type': 'application/json',
+                'origin': 'https://odyssey.sonic.game',
+                'priority': 'u=1, i',
+                'referer': 'https://odyssey.sonic.game/',
+                'sec-ch-ua': '"Not/A)Brand";v="8", "Chromium";v="126", "Brave";v="126"',
+                'sec-ch-ua-mobile': '?0',
+                'sec-ch-ua-platform': '"Windows"',
+                'sec-fetch-dest': 'empty',
+                'sec-fetch-mode': 'cors',
+                'sec-fetch-site': 'same-site',
+                'sec-gpc': '1',
+                'user-agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36'
+            },
+            body: JSON.stringify({
+                'address': `${publicKey}`,
+                'address_encoded': `${addressEncoded}`,
+                'signature': `${signature}`
+            })
+        }).then(response => response.json());
+        const token = authorize.data.token;
+        resolve(token);
+    });
+
+    const listAccounts = readFileSync(path.join(workDir, 'sonicprivate.txt'), 'utf-8')
+        .split("\n")
+        .map(a => a.trim());
+
+    if (listAccounts.length === 0) {
+        throw new Error('Please fill at least 1 private key in sonicprivate.txt');
+    }
+    
+    for (const privateKey of listAccounts) {
+        const keypair = getKeypairFromPrivateKey(privateKey);
+        const publicKey = keypair.publicKey.toBase58()
+        const initialBalance = (await getSolanaBalance(keypair))
+        console.log(publicKey)
+        console.log(initialBalance)
+        const getToken = await getTokenLogin(keypair)           // ini buat ngambil token login
+        const getdaily = await getDailyLogin(keypair, getToken) // ini buat claim daily check-in
+        console.log(getdaily)
+        // const getOpenBox = await openBox(keypair, getToken)
+        // console.log(getOpenBox)
+    }
 })();
-EOF
-echo
-echo -e "${BOLD_BLUE}Node.js 스크립트를 실행합니다.${NC}"
-node kjk.mjs
-echo
+
 echo -e "${YELLOW}모든 작업이 완료되었습니다. 컨트롤+A+D로 스크린을 종료해주세요.${NC}"
 echo -e "${GREEN}스크립트 작성자: https://t.me/kjkresearch${NC}"
