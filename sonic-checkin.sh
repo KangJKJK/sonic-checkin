@@ -1,5 +1,7 @@
 #!/bin/sh
 
+echo "Sonic 데일리퀘스트 미션 스크립트입니다."
+
 const fs = require('fs');
 const path = require('path');
 const prompts = require('prompts');
