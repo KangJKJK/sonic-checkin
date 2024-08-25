@@ -38,9 +38,6 @@ const generateRandomAddresses = (count) => {
     return addresses;
 }
 
-// 개인 키 파일 경로를 지정
-const privateKeyFile = '/root/sonic-daily/sonicprivate.txt';
-
 // 개인 키를 파일에서 로드하여 Keypair 객체를 생성하는 함수
 const getKeypairFromPrivateKey = () => {
     try {
