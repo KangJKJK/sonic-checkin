@@ -18,6 +18,18 @@ cd "$workDir"
 
 echo -e "${GREEN}작업 디렉토리로 이동했습니다: ${workDir}${NC}"
 
+# Node.js 모듈 및 npm설치
+echo -e "${YELLOW}필요한 파일들을 설치합니다...${NC}"
+if ! command -v npm &> /dev/null
+then
+    echo -e "${BOLD_BLUE}npm이 설치되지 않았습니다. npm을 설치합니다...${NC}"
+    echo
+    sudo apt-get install -y npm
+else
+    echo -e "${BOLD_BLUE}npm이 이미 설치되어 있습니다.${NC}"
+fi
+npm install prompts @solana/web3.js bs58 tweetnacl node-fetch
+
 # Node.js 스크립트 작성
 echo -e "${YELLOW}Node.js 스크립트를 작성하고 있습니다...${NC}"
 cat << 'EOF' > sonic-checkin.js
