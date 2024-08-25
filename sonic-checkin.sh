@@ -22,6 +22,19 @@ echo -e "${YELLOW}새로운 작업 디렉토리 '${workDir}'를 생성합니다.
 mkdir -p "$workDir"
 cd "$workDir"
 
+# 파일 다운로드 및 덮어쓰기
+echo -e "${YELLOW}필요한 파일들을 다운로드합니다...${NC}"
+
+# 존재하는 파일을 삭제하고 다운로드
+rm -f package.json
+curl -o package.json https://raw.githubusercontent.com/KangJKJK/sonic-checkin/main/package.json
+
+rm -f package-lock.json
+curl -o package-lock.json https://raw.githubusercontent.com/KangJKJK/sonic-checkin/main/package-lock.json
+
+rm -f index.js
+curl -o index.js https://raw.githubusercontent.com/KangJKJK/sonic-checkin/main/index.js
+
 # npm 설치 여부 확인
 echo -e "${YELLOW}필요한 파일들을 설치합니다...${NC}"
 if ! command -v npm &> /dev/null; then
