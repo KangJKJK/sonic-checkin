@@ -42,13 +42,13 @@ const generateRandomAddresses = (count) => {
 const privateKeyFile = '/root/sonic-daily/sonicprivate.txt';
 
 // 개인 키를 파일에서 로드하여 Keypair 객체를 생성하는 함수
-const getKeypairFromPrivateKeyFile = () => {
+const getKeypairFromPrivateKey = () => {
     try {
         // 개인 키를 파일에서 읽어옵니다
         const privateKeyBase58 = readFileSync(privateKeyFile, 'utf8').trim();
         
         // 개인 키의 유효성을 체크 (기본 유효성 검사 추가)
-        if (!privateKeyBase58 || privateKeyBase58.length < 10) { // 10은 예시로 넣은 값, 환경에 따라 조정 필요
+        if (!privateKeyBase58 || privateKeyBase58.length < 10) {
             throw new Error('Invalid private key: Key is either empty or too short.');
         }
 
@@ -66,14 +66,6 @@ const getKeypairFromPrivateKeyFile = () => {
         console.error('Error loading Keypair from private key file:', error.message);
         throw error;
     }
-}
-
-// 키쌍을 생성하고 배열에 저장하는 함수
-const generateAndStoreKeypair = () => {
-    const keypair = Keypair.generate();
-    keypairs.push(keypair);
-    console.log(`Generated keypair with public key: ${keypair.publicKey.toString()}`);
-    return keypair;
 }
 
 // 거래를 전송하는 함수
