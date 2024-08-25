@@ -39,31 +39,9 @@ const generateRandomAddresses = (count) => {
 }
 
 // 개인 키를 파일에서 로드하여 Keypair 객체를 생성하는 함수
-const getKeypairFromPrivateKey(privateKey) => {
-    try {
-        // 개인 키를 파일에서 읽어옵니다
-        const privateKeyBase58 = readFileSync(privateKeyFile, 'utf8').trim();
-        
-        // 개인 키의 유효성을 체크 (기본 유효성 검사 추가)
-        if (!privateKeyBase58 || privateKeyBase58.length < 10) {
-            throw new Error('Invalid private key: Key is either empty or too short.');
-        }
-
-        // Base58로 인코딩된 문자열을 디코딩하여 바이트 배열로 변환합니다
-        const privateKeyBytes = bs58.decode(privateKeyBase58);
-
-        // 개인 키의 길이를 확인합니다 (Solana에서는 64바이트 길이의 개인 키가 필요합니다)
-        if (privateKeyBytes.length !== 64) {
-            throw new Error('Invalid private key length. Expected 64 bytes.');
-        }
-
-        // Keypair 객체를 생성하여 반환합니다
-        return Keypair.fromSecretKey(privateKeyBytes);
-    } catch (error) {
-        console.error('Error loading Keypair from private key file:', error.message);
-        throw error;
-    }
-}
+function getKeypairFromPrivateKey(privateKey) {
+    const decoded = bs58.decode(privateKey);
+    return sol.Keypair.fromSecretKey(decoded);
 
 // 거래를 전송하는 함수
 const sendTransaction = async (transaction, keyPair) => {
