@@ -1,5 +1,6 @@
 import { readFileSync } from "fs"; // 파일 시스템 모듈에서 읽기 기능을 가져옵니다.
 import { Twisters } from "twisters"; // Twisters 모듈을 가져옵니다.
+import path from 'path'; // path 모듈을 i가져옵니다.
 import { Connection, Keypair, SystemProgram, Transaction, LAMPORTS_PER_SOL, PublicKey } from "@solana/web3.js"; // Solana 웹3 모듈을 가져옵니다.
 import bs58 from "bs58"; // Base58 인코딩/디코딩을 위한 모듈을 가져옵니다.
 import prompts from 'prompts'; // 사용자 입력을 받기 위한 모듈을 가져옵니다.
