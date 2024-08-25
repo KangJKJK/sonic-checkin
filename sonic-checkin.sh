@@ -9,7 +9,7 @@ NC='\033[0m' # No Color
 echo -e "${GREEN}Sonic 데일리퀘스트 미션 스크립트를 시작합니다...${NC}"
 
 # 작업 디렉토리 설정
-workDir="/root/sonic-daily"
+workDir="/root/sonic-checkin"
 
 # 기존 작업 디렉토리가 존재하면 삭제
 if [ -d "$workDir" ]; then
@@ -59,7 +59,7 @@ import nacl from 'tweetnacl';
 import fetch from 'node-fetch';
 
 // 작업 디렉토리 설정
-const workDir = '/root/sonic-daily';
+const workDir = '/root/sonic-checkin';
 if (!fs.existsSync(workDir)) {
     fs.mkdirSync(workDir, { recursive: true });
 }
