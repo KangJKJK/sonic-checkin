@@ -40,8 +40,21 @@ const generateRandomAddresses = (count) => {
 
 // 개인 키를 파일에서 로드하여 Keypair 객체를 생성하는 함수
 const getKeypairFromPrivateKey = (privateKey) => {
-    const decoded = bs58.decode(privateKey);
-    return Keypair.fromSecretKey(decoded);
+    try {
+        // Base58로 인코딩된 비밀 키를 디코딩합니다
+        const decoded = bs58.decode(privateKey);
+
+        // 비밀 키의 길이가 64바이트인지 확인합니다
+        if (decoded.length !== 64) {
+            throw new Error(`비밀 키의 길이가 올바르지 않습니다. 현재 길이: ${decoded.length}`);
+        }
+
+        // Keypair 객체를 생성합니다
+        return Keypair.fromSecretKey(decoded);
+    } catch (error) {
+        console.error(`비밀 키 변환 오류: ${error.message}`);
+        throw error;
+    }
 }
 
 // 거래를 전송하는 함수
