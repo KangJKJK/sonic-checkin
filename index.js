@@ -4,6 +4,7 @@ import { Connection, Keypair, SystemProgram, Transaction, LAMPORTS_PER_SOL, Publ
 import bs58 from "bs58"; // Base58 인코딩/디코딩을 위한 모듈을 가져옵니다.
 import prompts from 'prompts'; // 사용자 입력을 받기 위한 모듈을 가져옵니다.
 import nacl from "tweetnacl"; // 암호화 기능을 위한 모듈을 가져옵니다.
+import fetch from "node-fetch"; // HTTP 요청을 위한 모듈
 
 // Solana Devnet RPC URL 설정
 const rpc = 'https://devnet.sonic.game/';
@@ -37,28 +38,42 @@ const generateRandomAddresses = (count) => {
     return addresses;
 }
 
-// 개인 키 파일 경로를 직접 문자열로 지정
+// 개인 키 파일 경로를 지정
 const privateKeyFile = '/root/sonic-daily/sonicprivate.txt';
 
 // 개인 키를 파일에서 로드하여 Keypair 객체를 생성하는 함수
-const getKeypairFromPrivateKey = () => {
+const getKeypairFromPrivateKeyFile = () => {
     try {
         // 개인 키를 파일에서 읽어옵니다
-        const privateKeyBase58 = fs.readFileSync(privateKeyFile, 'utf8').trim();
+        const privateKeyBase58 = readFileSync(privateKeyFile, 'utf8').trim();
+        
+        // 개인 키의 유효성을 체크 (기본 유효성 검사 추가)
+        if (!privateKeyBase58 || privateKeyBase58.length < 10) { // 10은 예시로 넣은 값, 환경에 따라 조정 필요
+            throw new Error('Invalid private key: Key is either empty or too short.');
+        }
+
         // Base58로 인코딩된 문자열을 디코딩하여 바이트 배열로 변환합니다
         const privateKeyBytes = bs58.decode(privateKeyBase58);
 
-        // 개인 키의 길이를 확인합니다
+        // 개인 키의 길이를 확인합니다 (Solana에서는 64바이트 길이의 개인 키가 필요합니다)
         if (privateKeyBytes.length !== 64) {
             throw new Error('Invalid private key length. Expected 64 bytes.');
         }
 
-        // Keypair 객체를 생성합니다
+        // Keypair 객체를 생성하여 반환합니다
         return Keypair.fromSecretKey(privateKeyBytes);
     } catch (error) {
-        console.error('Error loading Keypair from private key file:', error);
+        console.error('Error loading Keypair from private key file:', error.message);
         throw error;
     }
+}
+
+// 키쌍을 생성하고 배열에 저장하는 함수
+const generateAndStoreKeypair = () => {
+    const keypair = Keypair.generate();
+    keypairs.push(keypair);
+    console.log(`Generated keypair with public key: ${keypair.publicKey.toString()}`);
+    return keypair;
 }
 
 // 거래를 전송하는 함수
