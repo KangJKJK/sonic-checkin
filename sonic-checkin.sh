@@ -30,10 +30,6 @@ fi
 
 # Node.js 모듈 설치
 echo -e "${YELLOW}필요한 Node.js 모듈을 설치합니다...${NC}"
-if [ ! -f "package.json" ]; then
-    npm init -y
-fi
-
 npm install prompts @solana/web3.js bs58 tweetnacl node-fetch
 
 # Node.js 스크립트 작성
