@@ -28,16 +28,6 @@ const defaultHeaders = {
     'user-agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36'
 };
 
-// 주소를 생성하는 함수
-const generateRandomAddresses = (count) => {
-    const addresses = [];
-    for (let i = 0; i < count; i++) {
-        const keypair = Keypair.generate();
-        addresses.push(keypair.publicKey.toString());
-    }
-    return addresses;
-}
-
 // 랜덤 주소를 생성하는 함수
 const generateRandomAddresses = (count) => {
     const keypairs = [];
