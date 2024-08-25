@@ -10,24 +10,30 @@ echo -e "${GREEN}Sonic 데일리퀘스트 미션 스크립트를 시작합니다
 
 # 작업 디렉토리 설정
 workDir="/root/sonic-daily"
+
+# 작업 디렉토리가 존재하지 않으면 생성
 if [ ! -d "$workDir" ]; then
     echo -e "${YELLOW}작업 디렉토리 '${workDir}'가 존재하지 않으므로 새로 생성합니다.${NC}"
     mkdir -p "$workDir"
 fi
 cd "$workDir"
 
-echo -e "${GREEN}작업 디렉토리로 이동했습니다: ${workDir}${NC}"
-
-# Node.js 모듈 및 npm설치
+# npm 설치 여부 확인
 echo -e "${YELLOW}필요한 파일들을 설치합니다...${NC}"
-if ! command -v npm &> /dev/null
-then
+if ! command -v npm &> /dev/null; then
     echo -e "${BOLD_BLUE}npm이 설치되지 않았습니다. npm을 설치합니다...${NC}"
-    echo
+    sudo apt-get update
     sudo apt-get install -y npm
 else
     echo -e "${BOLD_BLUE}npm이 이미 설치되어 있습니다.${NC}"
 fi
+
+# Node.js 모듈 설치
+echo -e "${YELLOW}필요한 Node.js 모듈을 설치합니다...${NC}"
+if [ ! -f "package.json" ]; then
+    npm init -y
+fi
+
 npm install prompts @solana/web3.js bs58 tweetnacl node-fetch
 
 # Node.js 스크립트 작성
