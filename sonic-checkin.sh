@@ -81,12 +81,6 @@ process.chdir(workDir);
         throw new Error('sonicprivate.txt에 개인키를 하나 이상 입력해주세요.');
     }
 
-    const connection = new sol.Connection('https://devnet.sonic.game/', 'confirmed');
-
-    function getKeypairFromPrivateKey(privateKey) {
-        const decoded = bs58.decode(privateKey);
-        return sol.Keypair.fromSecretKey(decoded);
-    }
     // 환경 변수 설정
     process.env.privatekey = response.privateKeys.trim();
 
