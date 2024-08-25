@@ -51,7 +51,7 @@ npm install @solana/web3.js chalk bs58
 read -p "Solana의 개인키를 쉼표로 구분하여 입력하세요: " privkeys
 
 # 개인키를 파일에 저장
-echo "$privkeys" > "$workDir2/sonicprivate.txt"
+echo "$privkeys" > "$workDir/sonicprivate.txt"
 
 # Node.js 스크립트 작성 (sonic-checkin.mjs)
 echo -e "${YELLOW}Node.js 스크립트를 작성하고 있습니다...${NC}"
