@@ -46,6 +46,7 @@ fi
 echo -e "${YELLOW}필요한 Node.js 모듈을 설치합니다...${NC}"
 npm install
 npm install @solana/web3.js chalk bs58
+npm install node-fetch@latest
 
 # 개인키 입력받기
 read -p "Solana의 개인키를 쉼표로 구분하여 입력하세요: " privkeys
