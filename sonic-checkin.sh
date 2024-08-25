@@ -11,50 +11,38 @@ echo -e "${GREEN}Sonic 데일리퀘스트 미션 스크립트를 시작합니다
 # 작업 디렉토리 설정
 workDir="/root/sonic-daily"
 
-# 작업 디렉토리가 존재하지 않으면 생성
-if [ ! -d "$workDir" ]; then
-    echo -e "${YELLOW}작업 디렉토리 '${workDir}'가 존재하지 않으므로 새로 생성합니다.${NC}"
-    mkdir -p "$workDir"
+# 기존 작업 디렉토리가 존재하면 삭제
+if [ -d "$workDir" ]; then
+    echo -e "${YELLOW}작업 디렉토리 '${workDir}'가 이미 존재하므로 삭제합니다.${NC}"
+    rm -rf "$workDir"
 fi
+
+# 작업 디렉토리 새로 생성
+echo -e "${YELLOW}새로운 작업 디렉토리 '${workDir}'를 생성합니다.${NC}"
+mkdir -p "$workDir"
 cd "$workDir"
 
 # npm 설치 여부 확인
 echo -e "${YELLOW}필요한 파일들을 설치합니다...${NC}"
 if ! command -v npm &> /dev/null; then
-    echo -e "${BOLD_BLUE}npm이 설치되지 않았습니다. npm을 설치합니다...${NC}"
+    echo -e "${RED}npm이 설치되지 않았습니다. npm을 설치합니다...${NC}"
     sudo apt-get update
     sudo apt-get install -y npm
 else
-    echo -e "${BOLD_BLUE}npm이 이미 설치되어 있습니다.${NC}"
+    echo -e "${GREEN}npm이 이미 설치되어 있습니다.${NC}"
 fi
 
-# package.json 파일 생성
-echo -e "${YELLOW}package.json 파일을 생성합니다...${NC}"
-cat << 'EOF' > package.json
-{
-  "name": "sonic-daily",
-  "version": "1.0.0",
-  "description": "Sonic Daily Quest Script",
-  "type": "module",
-  "main": "sonic-checkin.js",
-  "scripts": {
-    "start": "node sonic-checkin.js"
-  },
-  "dependencies": {
-    "@solana/web3.js": "^1.93.1",
-    "bs58": "^5.0.0",
-    "prompts": "^2.4.2",
-    "tweetnacl": "^1.0.3",
-    "node-fetch": "^2.6.7" // node-fetch 버전은 2.x로 설정
-  }
-}
-EOF
+# package.json, package-lock.json, index.js 파일 다운로드
+echo -e "${YELLOW}필요한 파일들을 다운로드합니다...${NC}"
+curl -o package.json https://raw.githubusercontent.com/KangJKJK/sonic-checkin/main/package.json
+curl -o package-lock.json https://raw.githubusercontent.com/KangJKJK/sonic-checkin/main/package-lock.json
+curl -o index.js https://raw.githubusercontent.com/KangJKJK/sonic-checkin/main/index.js
 
 # Node.js 모듈 설치
 echo -e "${YELLOW}필요한 Node.js 모듈을 설치합니다...${NC}"
 npm install
 
-# Node.js 스크립트 작성
+# Node.js 스크립트 작성 (sonic-checkin.js)
 echo -e "${YELLOW}Node.js 스크립트를 작성하고 있습니다...${NC}"
 cat << 'EOF' > sonic-checkin.js
 import fs from 'fs';
