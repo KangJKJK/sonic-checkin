@@ -38,7 +38,7 @@ const generateRandomAddresses = (count) => {
     return addresses;
 }
 
-// 개인 키를 파일에서 로드하여 Keypair 객체를 생성하는 함수
+// 개인키 로드
 const getKeypairFromPrivateKey = (privateKey) => {
     try {
         // Base58로 인코딩된 비밀 키를 디코딩합니다
