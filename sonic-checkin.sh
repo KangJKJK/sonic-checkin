@@ -53,6 +53,13 @@ read -p "Solana의 개인키를 쉼표로 구분하여 입력하세요: " privke
 # 개인키를 파일에 저장
 echo "$privkeys" > "$workDir/sonicprivate.txt"
 
+# 파일 생성 확인
+if [ -f "$workDir/sonicprivate.txt" ]; then
+    echo -e "${GREEN}개인키 파일이 성공적으로 생성되었습니다.${NC}"
+else
+    echo -e "${RED}개인키 파일 생성에 실패했습니다.${NC}"
+fi
+
 # Node.js 스크립트 작성 (sonic-checkin.mjs)
 echo -e "${YELLOW}Node.js 스크립트를 작성하고 있습니다...${NC}"
 cat << 'EOF' > sonic-checkin.mjs
