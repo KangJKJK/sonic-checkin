@@ -5,8 +5,6 @@ import bs58 from "bs58"; // Base58 인코딩/디코딩을 위한 모듈을 가�
 import prompts from 'prompts'; // 사용자 입력을 받기 위한 모듈을 가져옵니다.
 import nacl from "tweetnacl"; // 암호화 기능을 위한 모듈을 가져옵니다.
 
-// 2Captcha API 키를 입력하세요.
-const captchaKey = 'INSERT_YOUR_2CAPTCHA_KEY_HERE'; 
 // Solana Devnet RPC URL 설정
 const rpc = 'https://devnet.sonic.game/';
 const connection = new Connection(rpc, 'confirmed'); // Solana 네트워크와 연결 설정
@@ -41,14 +39,19 @@ const generateRandomAddresses = (count) => {
 
 // 개인 키를 파일에서 로드하여 Keypair 객체를 생성하는 함수
 const getKeypairFromPrivateKeyFile = () => {
-    const privateKeyBase58 = readFileSync(privateKeyFile, 'utf8').trim();
-    const privateKeyBytes = bs58.decode(privateKeyBase58);
+    try {
+        const privateKeyBase58 = readFileSync(privateKeyFile, 'utf8').trim();
+        const privateKeyBytes = bs58.decode(privateKeyBase58);
 
-    if (privateKeyBytes.length !== 64) {
-        throw new Error('Invalid private key length');
+        if (privateKeyBytes.length !== 64) {
+            throw new Error('Invalid private key length. Expected 64 bytes.');
+        }
+
+        return Keypair.fromSecretKey(privateKeyBytes);
+    } catch (error) {
+        console.error('Error loading Keypair from private key file:', error);
+        throw error;
     }
-
-    return Keypair.fromSecretKey(privateKeyBytes);
 }
 
 // 거래를 전송하는 함수
