@@ -1,13 +1,33 @@
-#!/bin/sh
+#!/bin/bash
 
-echo "Sonic 데일리퀘스트 미션 스크립트입니다."
+# 색깔 변수 정의
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[0;33m'
+NC='\033[0m' # No Color
 
+echo -e "${GREEN}Sonic 데일리퀘스트 미션 스크립트를 시작합니다...${NC}"
+
+# 작업 디렉토리 설정
+workDir="/root/sonic-daily"
+if [ ! -d "$workDir" ]; then
+    echo -e "${YELLOW}작업 디렉토리 '${workDir}'가 존재하지 않으므로 새로 생성합니다.${NC}"
+    mkdir -p "$workDir"
+fi
+cd "$workDir"
+
+echo -e "${GREEN}작업 디렉토리로 이동했습니다: ${workDir}${NC}"
+
+# Node.js 스크립트 작성
+echo -e "${YELLOW}Node.js 스크립트를 작성하고 있습니다...${NC}"
+cat << 'EOF' > sonic-checkin.js
 const fs = require('fs');
 const path = require('path');
 const prompts = require('prompts');
 const sol = require("@solana/web3.js");
 const bs58 = require("bs58");
 const nacl = require("tweetnacl");
+const fetch = require('node-fetch');  // Node.js에서 fetch를 사용하려면 필요
 
 // 작업 디렉토리 설정
 const workDir = '/root/sonic-daily';
@@ -27,7 +47,7 @@ process.chdir(workDir);
 
     // 개인키 파일로 저장
     const privateKeyFile = path.join(workDir, 'sonicprivate.txt');
-    writeFileSync(privateKeyFile, response.privateKey.trim());
+    fs.writeFileSync(privateKeyFile, response.privateKey.trim());
 
     // 환경 변수 설정
     process.env.privatekey = response.privateKey.trim();
@@ -40,9 +60,7 @@ process.chdir(workDir);
     }
 
     async function Tx(trans, keyPair) {
-        const tx = await sol.sendAndConfirmTransaction(connection, trans, [
-            keyPair,
-        ]);
+        const tx = await sol.sendAndConfirmTransaction(connection, trans, [keyPair]);
         console.log(`Tx Url: https://explorer.sonic.game/tx/${tx}`);
         return tx;
     }
@@ -163,7 +181,7 @@ process.chdir(workDir);
         resolve(token);
     });
 
-    const listAccounts = readFileSync(path.join(workDir, 'sonicprivate.txt'), 'utf-8')
+    const listAccounts = fs.readFileSync(path.join(workDir, 'sonicprivate.txt'), 'utf-8')
         .split("\n")
         .map(a => a.trim());
 
@@ -175,8 +193,8 @@ process.chdir(workDir);
         const keypair = getKeypairFromPrivateKey(privateKey);
         const publicKey = keypair.publicKey.toBase58()
         const initialBalance = (await getSolanaBalance(keypair))
-        console.log(publicKey)
-        console.log(initialBalance)
+        console.log(`${publicKey}`)
+        console.log(`${initialBalance}`)
         const getToken = await getTokenLogin(keypair)           // ini buat ngambil token login
         const getdaily = await getDailyLogin(keypair, getToken) // ini buat claim daily check-in
         console.log(getdaily)
@@ -184,6 +202,13 @@ process.chdir(workDir);
         // console.log(getOpenBox)
     }
 })();
+EOF
 
-echo -e "${YELLOW}모든 작업이 완료되었습니다. 컨트롤+A+D로 스크린을 종료해주세요.${NC}"
+echo -e "${YELLOW}Node.js 스크립트를 작성했습니다.${NC}"
+
+# Node.js 스크립트 실행
+echo -e "${GREEN}Node.js 스크립트를 실행합니다...${NC}"
+node sonic-checkin.js
+
+echo -e "${GREEN}모든 작업이 완료되었습니다. 컨트롤+A+D로 스크린을 종료해주세요.${NC}"
 echo -e "${GREEN}스크립트 작성자: https://t.me/kjkresearch${NC}"
