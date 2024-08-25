@@ -28,20 +28,42 @@ else
     echo -e "${BOLD_BLUE}npm이 이미 설치되어 있습니다.${NC}"
 fi
 
+# package.json 파일 생성
+echo -e "${YELLOW}package.json 파일을 생성합니다...${NC}"
+cat << 'EOF' > package.json
+{
+  "name": "sonic-daily",
+  "version": "1.0.0",
+  "description": "Sonic Daily Quest Script",
+  "type": "module",
+  "main": "sonic-checkin.js",
+  "scripts": {
+    "start": "node sonic-checkin.js"
+  },
+  "dependencies": {
+    "@solana/web3.js": "^1.93.1",
+    "bs58": "^5.0.0",
+    "prompts": "^2.4.2",
+    "tweetnacl": "^1.0.3",
+    "node-fetch": "^2.6.7" // node-fetch 버전은 2.x로 설정
+  }
+}
+EOF
+
 # Node.js 모듈 설치
 echo -e "${YELLOW}필요한 Node.js 모듈을 설치합니다...${NC}"
-npm install prompts @solana/web3.js bs58 tweetnacl node-fetch
+npm install
 
 # Node.js 스크립트 작성
 echo -e "${YELLOW}Node.js 스크립트를 작성하고 있습니다...${NC}"
 cat << 'EOF' > sonic-checkin.js
-const fs = require('fs');
-const path = require('path');
-const prompts = require('prompts');
-const sol = require("@solana/web3.js");
-const bs58 = require("bs58");
-const nacl = require("tweetnacl");
-const fetch = require('node-fetch');  // Node.js에서 fetch를 사용하려면 필요
+import fs from 'fs';
+import path from 'path';
+import prompts from 'prompts';
+import * as sol from '@solana/web3.js';
+import bs58 from 'bs58';
+import nacl from 'tweetnacl';
+import fetch from 'node-fetch';
 
 // 작업 디렉토리 설정
 const workDir = '/root/sonic-daily';
@@ -222,7 +244,7 @@ echo -e "${YELLOW}Node.js 스크립트를 작성했습니다.${NC}"
 
 # Node.js 스크립트 실행
 echo -e "${GREEN}Node.js 스크립트를 실행합니다...${NC}"
-node sonic-checkin.js
+npm start
 
 echo -e "${GREEN}모든 작업이 완료되었습니다. 컨트롤+A+D로 스크린을 종료해주세요.${NC}"
 echo -e "${GREEN}스크립트 작성자: https://t.me/kjkresearch${NC}"
