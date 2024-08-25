@@ -39,9 +39,9 @@ const generateRandomAddresses = (count) => {
 }
 
 // 개인 키를 파일에서 로드하여 Keypair 객체를 생성하는 함수
-function getKeypairFromPrivateKey(privateKey) {
+const getKeypairFromPrivateKey = (privateKey) => {
     const decoded = bs58.decode(privateKey);
-    return sol.Keypair.fromSecretKey(decoded);
+    return Keypair.fromSecretKey(decoded);
 }
 
 // 거래를 전송하는 함수
