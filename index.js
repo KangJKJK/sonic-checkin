@@ -1,6 +1,5 @@
 import { readFileSync } from "fs"; // 파일 시스템 모듈에서 읽기 기능을 가져옵니다.
 import { Twisters } from "twisters"; // Twisters 모듈을 가져옵니다.
-import path from 'path'; // path 모듈을 i가져옵니다.
 import { Connection, Keypair, SystemProgram, Transaction, LAMPORTS_PER_SOL, PublicKey } from "@solana/web3.js"; // Solana 웹3 모듈을 가져옵니다.
 import bs58 from "bs58"; // Base58 인코딩/디코딩을 위한 모듈을 가져옵니다.
 import prompts from 'prompts'; // 사용자 입력을 받기 위한 모듈을 가져옵니다.
@@ -38,9 +37,8 @@ const generateRandomAddresses = (count) => {
     return addresses;
 }
 
-// 작업 디렉토리 설정
-const workDir = './'; // 현재 디렉토리 (root/sonic-daily)
-const privateKeyFile = path.join(workDir, 'sonicprivate.txt');
+// 개인 키 파일 경로를 직접 문자열로 지정
+const privateKeyFile = './sonicprivate.txt';
 
 // 개인 키를 파일에서 로드하여 Keypair 객체를 생성하는 함수
 const getKeypairFromPrivateKeyFile = () => {
