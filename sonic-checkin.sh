@@ -71,7 +71,7 @@ process.chdir(workDir);
         type: 'text',
         name: 'privateKeys',
         message: '콤마로 구분된 개인키를 입력하세요 (여러 개인키 입력 가능). 입력 후 Enter를 누르세요:',
-        multiline: true
+        validate: value => value.trim().length > 0 ? true : '개인키를 입력해 주세요.'
     });
 
     // 개인키 파일로 저장
