@@ -237,7 +237,7 @@ process.chdir(workDir);
         const keypair = getKeypairFromPrivateKey(privateKey);
         const publicKey = keypair.publicKey.toBase58();
         const initialBalance = (await getSolanaBalance(keypair));
-        console.log(`공식키: ${publicKey}`);
+        console.log(`지갑 주소: ${publicKey}`);
         console.log(`초기 잔액: ${initialBalance}`);
         const getToken = await getTokenLogin(keypair);           // 토큰 로그인 획득
         const getdaily = await getDailyLogin(keypair, getToken); // 데일리 체크인 수행
