@@ -38,13 +38,13 @@ const generateRandomAddresses = (count) => {
 }
 
 // 개인 키 파일 경로를 직접 문자열로 지정
-const privateKeyFile = './sonicprivate.txt';
+const privateKeyFile = '/root/sonic-daily/sonicprivate.txt';
 
 // 개인 키를 파일에서 로드하여 Keypair 객체를 생성하는 함수
 const getKeypairFromPrivateKeyFile = () => {
     try {
         // 개인 키를 파일에서 읽어옵니다
-        const privateKeyBase58 = readFileSync(privateKeyFile, 'utf8').trim();
+        const privateKeyBase58 = fs.readFileSync(privateKeyFile, 'utf8').trim();
         // Base58로 인코딩된 문자열을 디코딩하여 바이트 배열로 변환합니다
         const privateKeyBytes = bs58.decode(privateKeyBase58);
 
