@@ -1,17 +1,20 @@
-const { readFileSync } = require("fs");
-const { Twisters } = require("twisters");
-const sol = require("@solana/web3.js");
-const bs58 = require("bs58");
-const prompts = require('prompts');
-const nacl = require("tweetnacl");
+import { readFileSync } from "fs"; // 파일 시스템 모듈에서 읽기 기능을 가져옵니다.
+import { Twisters } from "twisters"; // Twisters 모듈을 가져옵니다.
+import { Connection, Keypair, SystemProgram, Transaction, LAMPORTS_PER_SOL, PublicKey } from "@solana/web3.js"; // Solana 웹3 모듈을 가져옵니다.
+import bs58 from "bs58"; // Base58 인코딩/디코딩을 위한 모듈을 가져옵니다.
+import prompts from 'prompts'; // 사용자 입력을 받기 위한 모듈을 가져옵니다.
+import nacl from "tweetnacl"; // 암호화 기능을 위한 모듈을 가져옵니다.
 
-const captchaKey = 'INSERT_YOUR_2CAPTCHA_KEY_HERE';
+// 2Captcha API 키를 입력하세요.
+const captchaKey = 'INSERT_YOUR_2CAPTCHA_KEY_HERE'; 
+// Solana Devnet RPC URL 설정
 const rpc = 'https://devnet.sonic.game/';
-const connection = new sol.Connection(rpc, 'confirmed');
-const keypairs = [];
-const twisters = new Twisters();
+const connection = new Connection(rpc, 'confirmed'); // Solana 네트워크와 연결 설정
+const keypairs = []; // 생성된 키쌍을 저장할 배열
+const twisters = new Twisters(); // Twisters 인스턴스 생성
 
-let defaultHeaders = {
+// 기본 HTTP 헤더 설정
+const defaultHeaders = {
     'accept': '*/*',
     'accept-language': 'en-US,en;q=0.7',
     'content-type': 'application/json',
@@ -26,86 +29,89 @@ let defaultHeaders = {
     'user-agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36'
 };
 
-function generateRandomAddresses(count) {
+// 주소를 생성하는 함수
+const generateRandomAddresses = (count) => {
     const addresses = [];
     for (let i = 0; i < count; i++) {
-    const keypair = sol.Keypair.generate();
-    addresses.push(keypair.publicKey.toString());
+        const keypair = Keypair.generate();
+        addresses.push(keypair.publicKey.toString());
     }
     return addresses;
 }
 
-function getKeypairFromPrivateKey(privateKey) {
-    const decoded = bs58.decode(privateKey);
-    return sol.Keypair.fromSecretKey(decoded);
+// 개인 키를 사용하여 Keypair를 생성하는 함수
+const getKeypairFromPrivateKey = (privateKey) => {
+    const decoded = bs58.decode(privateKey); // 개인 키를 Base58에서 디코딩
+    return Keypair.fromSecretKey(decoded); // Keypair 객체 생성
 }
 
-const sendTransaction = (transaction, keyPair) => new Promise(async (resolve) => {
+// 거래를 전송하는 함수
+const sendTransaction = async (transaction, keyPair) => {
     try {
-        transaction.partialSign(keyPair);
-        const rawTransaction = transaction.serialize();
-        const signature = await connection.sendRawTransaction(rawTransaction);
-        await connection.confirmTransaction(signature);
-        // const hash = await sol.sendAndConfirmTransaction(connection, transaction, [keyPair]);
-        resolve(signature);
+        transaction.partialSign(keyPair); // 거래에 서명
+        const rawTransaction = transaction.serialize(); // 거래를 직렬화
+        const signature = await connection.sendRawTransaction(rawTransaction); // 거래 전송
+        await connection.confirmTransaction(signature); // 거래 확인
+        return signature;
     } catch (error) {
-        resolve(error);
+        throw error;
     }
-});
-
-const delay = (seconds) => {
-    return new Promise((resolve) => {
-        return setTimeout(resolve, seconds * 1000);
-    });
 }
 
-const twocaptcha_turnstile = (sitekey, pageurl) => new Promise(async (resolve) => {
+// 지연을 주는 함수
+const delay = (seconds) => new Promise((resolve) => setTimeout(resolve, seconds * 1000));
+
+// 2Captcha Turnstile CAPTCHA를 해결하는 함수
+const twocaptcha_turnstile = async (sitekey, pageurl) => {
     try {
+        // CAPTCHA 토큰 요청
         const getToken = await fetch(`https://2captcha.com/in.php?key=${captchaKey}&method=turnstile&sitekey=${sitekey}&pageurl=${pageurl}&json=1`, {
             method: 'GET',
         })
         .then(res => res.text())
         .then(res => {
             if (res == 'ERROR_WRONG_USER_KEY' || res == 'ERROR_ZERO_BALANCE') {
-                return resolve(res);
+                throw new Error(res);
             } else {
                 return res.split('|');
             }
         });
 
         if (getToken[0] != 'OK') {
-            resolve('FAILED_GETTING_TOKEN');
+            throw new Error('FAILED_GETTING_TOKEN');
         }
     
         const task = getToken[1];
 
+        // 토큰을 얻기 위해 주기적으로 폴링
         for (let i = 0; i < 60; i++) {
             const token = await fetch(
                 `https://2captcha.com/res.php?key=${captchaKey}&action=get&id=${task}&json=1`
             ).then(res => res.json());
             
             if (token.status == 1) {
-                resolve(token);
-                break;
+                return token;
             }
-            await delay(2);
+            await delay(2); // 2초 대기
         }
+        throw new Error('FAILED_GETTING_TOKEN');
     } catch (error) {
-        resolve('FAILED_GETTING_TOKEN');
+        throw error;
     }
-});
+}
 
-const claimFaucet = (address) => new Promise(async (resolve) => {
+// 솔라나 Faucet에서 SOL을 청구하는 함수
+const claimFaucet = async (address) => {
     let success = false;
     
     while (!success) {
-        const bearer = await twocaptcha_turnstile('0x4AAAAAAAc6HG1RMG_8EHSC', 'https://faucet.sonic.game/#/');
-        if (bearer == 'ERROR_WRONG_USER_KEY' || bearer == 'ERROR_ZERO_BALANCE' || bearer == 'FAILED_GETTING_TOKEN' ) {
-            success = true;
-            resolve(`Failed claim, ${bearer}`);
-        }
-    
         try {
+            const bearer = await twocaptcha_turnstile('0x4AAAAAAAc6HG1RMG_8EHSC', 'https://faucet.sonic.game/#/');
+            if (bearer == 'ERROR_WRONG_USER_KEY' || bearer == 'ERROR_ZERO_BALANCE' || bearer == 'FAILED_GETTING_TOKEN') {
+                return `청구 실패, ${bearer}`;
+            }
+    
+            // Faucet API를 통해 청구 요청
             const res = await fetch(`https://faucet-api.sonic.game/airdrop/${address}/1/${bearer.request}`, {
                 headers: {
                     "Accept": "application/json, text/plain, */*",
@@ -122,30 +128,28 @@ const claimFaucet = (address) => new Promise(async (resolve) => {
             }).then(res => res.json());
     
             if (res.status == 'ok') {
-                success = true;
-                resolve(`Successfully claim faucet 1 SOL!`);
+                return `성공적으로 1 SOL을 청구했습니다!`;
             }
-            // } else {
-            //     resolve(`Failed to claim, ${res.error}`);
-            // }
-        } catch (error) {}
-        //     resolve(`Failed claim, ${error}`);
-        // }
+        } catch (error) {
+            return `청구 실패, ${error}`;
+        }
     }
-});
+}
 
-const getLoginToken = (keyPair) => new Promise(async (resolve) => {
-    let success = false;
-    while (!success) {
+// 로그인 토큰을 가져오는 함수
+const getLoginToken = async (keyPair) => {
+    while (true) {
         try {
+            // 로그인 도전 과제 요청
             const message = await fetch(`https://odyssey-api.sonic.game/auth/sonic/challenge?wallet=${keyPair.publicKey}`, {
                 headers: defaultHeaders
             }).then(res => res.json());
         
-            const sign = nacl.sign.detached(Buffer.from(message.data), keyPair.secretKey);
+            const sign = nacl.sign.detached(Buffer.from(message.data), keyPair.secretKey); // 메시지에 서명
             const signature = Buffer.from(sign).toString('base64');
             const publicKey = keyPair.publicKey.toBase58();
-            const addressEncoded = Buffer.from(keyPair.publicKey.toBytes()).toString("base64")
+            const addressEncoded = Buffer.from(keyPair.publicKey.toBytes()).toString("base64");
+            // 인증 요청
             const authorize = await fetch('https://odyssey-api.sonic.game/auth/sonic/authorize', {
                 method: 'POST',
                 headers: defaultHeaders,
@@ -156,17 +160,18 @@ const getLoginToken = (keyPair) => new Promise(async (resolve) => {
                 })
             }).then(res => res.json());
         
-            const token = authorize.data.token;
-            success = true;
-            resolve(token);
-        } catch (e) {}
+            return authorize.data.token;
+        } catch (e) {
+            // 오류 발생 시 재시도
+        }
     }
-});
+}
 
-const dailyCheckin = (keyPair, auth) => new Promise(async (resolve) => {
-    let success = false;
-    while (!success) {
+// 매일 체크인하는 함수
+const dailyCheckin = async (keyPair, auth) => {
+    while (true) {
         try {
+            // 체크인 상태 요청
             const data = await fetch(`https://odyssey-api.sonic.game/user/check-in/transaction`, {
                 headers: {
                     ...defaultHeaders,
@@ -175,14 +180,14 @@ const dailyCheckin = (keyPair, auth) => new Promise(async (resolve) => {
             }).then(res => res.json());
             
             if (data.message == 'current account already checked in') {
-                success = true;
-                resolve('Already check in today!');
+                return '오늘 이미 체크인했습니다!';
             }
             
             if (data.data) {
                 const transactionBuffer = Buffer.from(data.data.hash, "base64");
-                const transaction = sol.Transaction.from(transactionBuffer);
-                const signature = await sendTransaction(transaction, keyPair);
+                const transaction = Transaction.from(transactionBuffer);
+                const signature = await sendTransaction(transaction, keyPair); // 거래 전송
+                // 체크인 완료 요청
                 const checkin = await fetch('https://odyssey-api.sonic.game/user/check-in', {
                     method: 'POST',
                     headers: {
@@ -194,65 +199,66 @@ const dailyCheckin = (keyPair, auth) => new Promise(async (resolve) => {
                     })
                 }).then(res => res.json());
                 
-                success = true;
-                resolve(`Successfully to check in, day ${checkin.data.accumulative_days}!`);
+                return `성공적으로 체크인 완료, ${checkin.data.accumulative_days}일째!`;
             }
-        } catch (e) {}
+        } catch (e) {
+            // 오류 발생 시 재시도
+        }
     }
-});
+}
 
-const dailyMilestone = (auth, stage) => new Promise(async (resolve) => {
-    let success = false;
-    while (!success) {
+// 일일 마일스톤 보상을 청구하는 함수
+const dailyMilestone = async (auth, stage) => {
+    while (true) {
         try {
+            // 일일 거래 상태 요청
             await fetch('https://odyssey-api.sonic.game/user/transactions/state/daily', {
                 method: 'GET',
                 headers: {
                     ...defaultHeaders,
                     'authorization': `${auth}`
-                },
+                }
             });
-
-            const data = await fetch('https://odyssey-api.sonic.game/user/transactions/rewards/claim', {
+            
+            // 마일스톤 보상 요청
+            const milestone = await fetch(`https://odyssey-api.sonic.game/user/milestones/daily/${stage}`, {
                 method: 'POST',
                 headers: {
                     ...defaultHeaders,
                     'authorization': `${auth}`
-                },
-                body: JSON.stringify({
-                    'stage': stage
-                })
-            }).then(res => res.json());
-            
-            if (data.message == 'interact rewards already claimed') {
-                success = true;
-                resolve(`Already claim milestone ${stage}!`);
-            }
-            
-            if (data.data) {
-                success = true;
-                resolve(`Successfully to claim milestone ${stage}.`)
-            }
-        } catch (e) {}
-    }
-});
-
-const openBox = (keyPair, auth) => new Promise(async (resolve) => {
-    let success = false;
-    while (!success) {
-        try {
-            const data = await fetch(`https://odyssey-api.sonic.game/user/rewards/mystery-box/build-tx`, {
-                headers: {
-                    ...defaultHeaders,
-                    'authorization': auth
                 }
             }).then(res => res.json());
+            
+            if (milestone.data) {
+                return `성공적으로 마일스톤 ${stage} 보상을 청구했습니다!`;
+            }
+        } catch (e) {
+            // 오류 발생 시 재시도
+        }
+    }
+}
 
+// 미스터리 박스를 여는 함수
+const openBox = async (keyPair, auth) => {
+    while (true) {
+        try {
+            // 미스터리 박스 상태 요청
+            const data = await fetch(`https://odyssey-api.sonic.game/user/rewards/mystery-box`, {
+                headers: {
+                    ...defaultHeaders,
+                    'authorization': `${auth}`
+                }
+            }).then(res => res.json());
+            
+            if (data.message == 'already opened') {
+                return '이미 박스를 열었습니다!';
+            }
+            
             if (data.data) {
                 const transactionBuffer = Buffer.from(data.data.hash, "base64");
-                const transaction = sol.Transaction.from(transactionBuffer);
-                transaction.partialSign(keyPair);
-                const signature = await sendTransaction(transaction, keyPair);
+                const transaction = Transaction.from(transactionBuffer);
+                const signature = await sendTransaction(transaction, keyPair); // 거래 전송
+                // 박스 열기 요청
                 const open = await fetch('https://odyssey-api.sonic.game/user/rewards/mystery-box/open', {
                     method: 'POST',
                     headers: {
@@ -260,267 +266,46 @@ const openBox = (keyPair, auth) => new Promise(async (resolve) => {
                         'authorization': auth
                     },
                     body: JSON.stringify({
-                        'hash': signature
+                        'hash': `${signature}`
                     })
                 }).then(res => res.json());
-
-                if (open.data) {
-                    success = true;
-                    resolve(open.data.amount);
-                }
+                
+                return `성공적으로 박스를 열었습니다, ${open.data}!`;
             }
-        } catch (e) {}
+        } catch (e) {
+            // 오류 발생 시 재시도
+        }
     }
-});
-
-const getUserInfo = (auth) => new Promise(async (resolve) => {
-    let success = false;
-    while (!success) {
-        try {
-            const data = await fetch('https://odyssey-api.sonic.game/user/rewards/info', {
-                headers: {
-                  ...defaultHeaders,
-                  'authorization': `${auth}`,
-                }
-            }).then(res => res.json());
-            
-            if (data.data) {
-                success = true;
-                resolve(data.data);
-            }
-        } catch (e) {}
-    }
-});
-
-const tgMessage = async (message) => {
-    const token = 'INSERT_YOUR_TELEGRAM_BOT_TOKEN_HERE';
-    const chatid = 'INSERT_YOUR_TELEGRAM_BOT_CHATID_HERE';
-    const boturl = `https://api.telegram.org/bot${token}/sendMessage`;
-
-    await fetch(boturl, {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-            chat_id: chatid,
-            link_preview_options: {is_disabled: true},
-            text: message,
-        }),
-    });
-};
-
-function extractAddressParts(address) {
-    const firstThree = address.slice(0, 4);
-    const lastFour = address.slice(-4);
-    return `${firstThree}...${lastFour}`;
 }
 
-(async () => {
-    // GET PRIVATE KEY
-    const listAccounts = readFileSync("./private.txt", "utf-8")
-        .split("\n")
-        .map((a) => a.trim());
-    for (const privateKey of listAccounts) {
-        keypairs.push(getKeypairFromPrivateKey(privateKey));
+// 모든 기능을 실행하는 함수
+const claimAirdrop = async (keyPair) => {
+    const auth = await getLoginToken(keyPair); // 로그인 토큰 획득
+    const result = {
+        faucet: await claimFaucet(keyPair.publicKey.toString()), // Faucet에서 SOL 청구
+        checkin: await dailyCheckin(keyPair, auth), // 매일 체크인
+        milestone1: await dailyMilestone(auth, 1), // 마일스톤 1 청구
+        milestone2: await dailyMilestone(auth, 2), // 마일스톤 2 청구
+        milestone3: await dailyMilestone(auth, 3), // 마일스톤 3 청구
+        openBox: await openBox(keyPair, auth), // 미스터리 박스 열기
+    };
+    return result;
+}
+
+// 메인 함수
+const main = async () => {
+    const count = 1; // 생성할 주소의 수
+    const addresses = generateRandomAddresses(count); // 랜덤 주소 생성
+
+    for (const address of addresses) {
+        const keyPair = getKeypairFromPrivateKey(address); // 개인 키를 통해 Keypair 생성
+        keypairs.push(keyPair); // 배열에 추가
     }
-    if (keypairs.length === 0) {
-        throw new Error('Please fill at least 1 private key in private.txt');
+
+    for (const keyPair of keypairs) {
+        const result = await claimAirdrop(keyPair); // 에어드랍 청구
+        console.log(`주소 ${keyPair.publicKey.toBase58()}의 결과:`, result); // 결과 출력
     }
-    
-    // ASK TO CLAIM FAUCET
-    const q = await prompts([
-        {
-            type: 'confirm',
-            name: 'claim',
-            message: 'Claim Faucet? (need 2captcha key)',
-        },
-        {
-            type: 'confirm',
-            name: 'openBox',
-            message: 'Auto Open Mystery Box?',
-        },
-        {
-            type: 'confirm',
-            name: 'useBot',
-            message: 'Use Telegram Bot as Notification?',
-        },
-        {
-            type: 'number',
-            name: 'index',
-            message: `You have ${keypairs.length} account, which one do you want to start with? (default is 1)`,
-        }
-    ]);
-    
+}
 
-    // CUSTOM YOURS
-    const addressCount = 100;
-    const amountToSend = 0.001; // in SOL
-    const delayBetweenRequests = 5; // in seconds
-
-    // DOING TASK FOR EACH PRIVATE KEY
-        for(let index = (q.index - 1); index < keypairs.length; index++) {
-            const publicKey = keypairs[index].publicKey.toBase58();
-            const randomAddresses = generateRandomAddresses(addressCount);
-
-            twisters.put(`${publicKey}`, { 
-                text: ` === ACCOUNT ${(index + 1)} ===
-Address      : ${publicKey}
-Points       : -
-Mystery Box  : -
-Status       : Getting user token...`
-            });
-
-            let token = await getLoginToken(keypairs[index]);
-            const initialInfo = await getUserInfo(token);
-            let info = initialInfo;
-    
-            twisters.put(`${publicKey}`, { 
-                text: ` === ACCOUNT ${(index + 1)} ===
-Address      : ${publicKey}
-Points       : ${info.ring}
-Mystery Box  : ${info.ring_monitor}
-Status       : -`
-            });
-    
-            // CLAIM FAUCET
-            if (q.claim) {
-                twisters.put(`${publicKey}`, { 
-                    text: ` === ACCOUNT ${(index + 1)} ===
-Address      : ${publicKey}
-Points       : ${info.ring}
-Mystery Box  : ${info.ring_monitor}
-Status       : Trying to claim faucet...`
-                });
-                const faucetStatus = await claimFaucet(keypairs[index].publicKey.toBase58());
-                twisters.put(`${publicKey}`, { 
-                    text: ` === ACCOUNT ${(index + 1)} ===
-Address      : ${publicKey}
-Points       : ${info.ring}
-Mystery Box  : ${info.ring_monitor}
-Status       : ${faucetStatus}`
-                });
-                await delay(delayBetweenRequests);
-            }
-    
-           // SENDING SOL
-            for (const [i, address] of randomAddresses.entries()) {
-                try {
-                    const toPublicKey = new sol.PublicKey(address);
-                    const transaction = new sol.Transaction().add(
-                        sol.SystemProgram.transfer({
-                            fromPubkey: keypairs[index].publicKey,
-                            toPubkey: toPublicKey,
-                            lamports: amountToSend * sol.LAMPORTS_PER_SOL,
-                        })
-                    );
-                    await sendTransaction(transaction, keypairs[index]);
-                    
-                    twisters.put(`${publicKey}`, { 
-                        text: ` === ACCOUNT ${(index + 1)} ===
-Address      : ${publicKey}
-Points       : ${info.ring}
-Mystery Box  : ${info.ring_monitor}
-Status       : [${(i + 1)}/${randomAddresses.length}] Successfully to sent ${amountToSend} SOL to ${address}`
-                    });
-        
-                    await delay(delayBetweenRequests);
-                } catch (error) {
-                    twisters.put(`${publicKey}`, { 
-                        text: ` === ACCOUNT ${(index + 1)} ===
-Address      : ${publicKey}
-Points       : ${info.ring}
-Mystery Box  : ${info.ring_monitor}
-Status       : [${(i + 1)}/${randomAddresses.length}] Failed to sent ${amountToSend} SOL to ${address}`
-                    });
-        
-                    await delay(delayBetweenRequests);
-                }
-            }
-
-            token = await getLoginToken(keypairs[index]);
-    
-            // CHECK IN TASK
-            twisters.put(`${publicKey}`, { 
-                text: ` === ACCOUNT ${(index + 1)} ===
-Address      : ${publicKey}
-Points       : ${info.ring}
-Mystery Box  : ${info.ring_monitor}
-Status       : Try to daily check in...`
-            });
-            const checkin = await dailyCheckin(keypairs[index], token);
-            info = await getUserInfo(token);
-            twisters.put(`${publicKey}`, { 
-                text: ` === ACCOUNT ${(index + 1)} ===
-Address      : ${publicKey}
-Points       : ${info.ring}
-Mystery Box  : ${info.ring_monitor}
-Status       : ${checkin}`
-            });
-            await delay(delayBetweenRequests);
-    
-            // CLAIM MILESTONES
-            twisters.put(`${publicKey}`, { 
-                text: ` === ACCOUNT ${(index + 1)} ===
-Address      : ${publicKey}
-Points       : ${info.ring}
-Mystery Box  : ${info.ring_monitor}
-Status       : Try to claim milestones...`
-            });
-            for (let i = 1; i <= 3; i++) {
-                const milestones = await dailyMilestone(token, i);
-                twisters.put(`${publicKey}`, { 
-                    text: ` === ACCOUNT ${(index + 1)} ===
-Address      : ${publicKey}
-Points       : ${info.ring}
-Mystery Box  : ${info.ring_monitor}
-Status       : ${milestones}`
-                });
-                await delay(delayBetweenRequests);
-            }
-
-            info = await getUserInfo(token);
-            let msg = `Earned ${(info.ring_monitor - initialInfo.ring_monitor)} Mystery Box\nYou have ${info.ring} Points and ${info.ring_monitor} Mystery Box now.`;
-
-            if (q.openBox) {
-                const totalBox = info.ring_monitor;
-                twisters.put(`${publicKey}`, { 
-                    text: `=== ACCOUNT ${(index + 1)} ===
-Address      : ${publicKey}
-Points       : ${info.ring}
-Mystery Box  : ${info.ring_monitor}
-Status       : Preparing for open ${totalBox} mystery boxes...`
-                });
-
-                for (let i = 0; i < totalBox; i++) {
-                    const openedBox = await openBox(keypairs[index], token);
-                    info = await getUserInfo(token);
-                    twisters.put(`${publicKey}`, { 
-                        text: ` === ACCOUNT ${(index + 1)} ===
-Address      : ${publicKey}
-Points       : ${info.ring}
-Mystery Box  : ${info.ring_monitor}
-Status       : [${(i + 1)}/${totalBox}] You got ${openedBox} points!`
-                    });
-                    await delay(delayBetweenRequests);
-                }
-
-                info = await getUserInfo(token);
-                msg = `Earned ${(info.ring - initialInfo.ring)} Points\nYou have ${info.ring} Points and ${info.ring_monitor} Mystery Box now.`;
-            }
-                
-            if (q.useBot) {
-                await tgMessage(`${extractAddressParts(publicKey)} | ${msg}`);
-            }
-                
-            // YOUR POINTS AND MYSTERY BOX COUNT
-            twisters.put(`${publicKey}`, { 
-                active: false,
-                text: ` === ACCOUNT ${(index + 1)} ===
-Address      : ${publicKey}
-Points       : ${info.ring}
-Mystery Box  : ${info.ring_monitor}
-Status       : ${msg}`
-            });
-        }
-})();
+main().catch(console.error); // 메인 함수 실행 및 에러 출력
