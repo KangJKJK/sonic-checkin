@@ -42,6 +42,7 @@ const generateRandomAddresses = (count) => {
 function getKeypairFromPrivateKey(privateKey) {
     const decoded = bs58.decode(privateKey);
     return sol.Keypair.fromSecretKey(decoded);
+}
 
 // 거래를 전송하는 함수
 const sendTransaction = async (transaction, keyPair) => {
