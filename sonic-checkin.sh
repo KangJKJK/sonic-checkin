@@ -58,7 +58,6 @@ echo -e "${YELLOW}Node.js 스크립트를 작성하고 있습니다...${NC}"
 cat << 'EOF' > sonic-checkin.mjs
 import fs from 'fs';
 import path from 'path';
-import prompts from 'prompts';
 import * as sol from '@solana/web3.js';
 import bs58 from 'bs58';
 import nacl from 'tweetnacl';
@@ -72,17 +71,14 @@ if (!fs.existsSync(workDir)) {
 process.chdir(workDir);
 
 (async () => {
-   // 콤마로 구분된 개인키 목록 읽기
-    const listAccounts = fs.readFileSync(path.join(workDir2, 'sonicprivate.txt'), 'utf-8')
+    // 콤마로 구분된 개인키 목록 읽기
+    const listAccounts = fs.readFileSync(path.join(workDir, 'sonicprivate.txt'), 'utf-8')
         .split(",")
         .map(a => a.trim());
 
     if (listAccounts.length === 0) {
         throw new Error('sonicprivate.txt에 개인키를 하나 이상 입력해주세요.');
     }
-
-    // 환경 변수 설정
-    process.env.privatekey = response.privateKeys.trim();
 
     const connection = new sol.Connection('https://devnet.sonic.game/', 'confirmed');
 
@@ -225,15 +221,6 @@ process.chdir(workDir);
             console.error('토큰 로그인 처리 중 오류 발생:', error);
         }
     });
-
-    // 콤마로 구분된 개인키 목록 읽기
-    const listAccounts = fs.readFileSync(path.join(workDir, 'sonicprivate.txt'), 'utf-8')
-        .split(",")
-        .map(a => a.trim());
-
-    if (listAccounts.length === 0) {
-        throw new Error('sonicprivate.txt에 개인키를 하나 이상 입력해주세요.');
-    }
 
     const totalKeys = listAccounts.length;
 
