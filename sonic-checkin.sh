@@ -8,7 +8,7 @@ NC='\033[0m' # No Color
 
 echo -e "${GREEN}Sonic 데일리퀘스트 미션 스크립트를 시작합니다...${NC}"
 
-# 작업 디렉토리 설정
+# 작업 디렉토리 설정 
 workDir="/root/sonic-checkin"
 
 # 기존 작업 디렉토리가 존재하면 삭제
@@ -45,7 +45,7 @@ fi
 # Node.js 모듈 설치
 echo -e "${YELLOW}필요한 Node.js 모듈을 설치합니다...${NC}"
 npm install
-npm install @solana/web3.js chalk bs58
+npm install @solana/web3.js chalk bs58 node-fetch
 
 # 개인키 입력받기
 read -p "Solana의 개인키를 쉼표로 구분하여 입력하세요: " privkeys
